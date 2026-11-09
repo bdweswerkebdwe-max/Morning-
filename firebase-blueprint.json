@@ -1,0 +1,225 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and profile details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth User ID" },
+        "fullName": { "type": "string", "maxLength": 100, "description": "User's display name" },
+        "email": { "type": "string", "format": "email", "description": "User's primary email" },
+        "photoURL": { "type": "string", "description": "Avatar URL" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "Account role" },
+        "credits": { "type": "number", "description": "Available credit points" },
+        "accountStatus": { "type": "string", "enum": ["active", "suspended"], "description": "Account status" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Subscription": {
+      "title": "Subscription Tier",
+      "description": "User active subscription plan details",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "planId": { "type": "string", "enum": ["free", "pro", "enterprise"] },
+        "status": { "type": "string", "enum": ["active", "cancelled", "expired"] },
+        "monthlyCredits": { "type": "number" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "planId", "status"]
+    },
+    "CreditWallet": {
+      "title": "Credit Wallet",
+      "description": "User point balance and credit reservations",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "balance": { "type": "number" },
+        "reserved": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "balance"]
+    },
+    "CreditTransaction": {
+      "title": "Credit Transaction Log",
+      "description": "History of credit additions, deductions, and refunds",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["credit_deduction", "credit_addition", "subscription", "refund", "coupon"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "amount"]
+    },
+    "VideoProject": {
+      "title": "Video Project",
+      "description": "User created video generation project",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string", "maxLength": 150 },
+        "type": { "type": "string", "enum": ["video", "creative_video", "copy", "image", "product_ad", "actor_video"] },
+        "platform": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "generating", "completed", "failed"] },
+        "progress": { "type": "number" },
+        "content": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "type", "status"]
+    },
+    "GeneratedVideo": {
+      "title": "Generated Video Asset",
+      "description": "Stored output metadata and storage URL for generated videos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "storagePath": { "type": "string" },
+        "duration": { "type": "string" },
+        "aspectRatio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "videoUrl"]
+    },
+    "Payment": {
+      "title": "Payment Record",
+      "description": "Transaction details for plan subscriptions or credit package purchases",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["completed", "pending", "failed"] },
+        "planId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "amount", "status"]
+    },
+    "AiLog": {
+      "title": "AI Operation Log",
+      "description": "Audit trail for server-side Gemini AI model calls",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "action": { "type": "string" },
+        "model": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "action"]
+    },
+    "Notification": {
+      "title": "User Notification",
+      "description": "In-app notifications for user accounts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "message"]
+    },
+    "Favorite": {
+      "title": "Favorite Item",
+      "description": "Saved favorite videos or templates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "itemType": { "type": "string" },
+        "itemId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "itemId"]
+    },
+    "AdminSetting": {
+      "title": "System Settings",
+      "description": "Global administration settings",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "value": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["key", "value"]
+    },
+    "SupportTicket": {
+      "title": "Support Ticket",
+      "description": "Help and customer support inquiries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "in_progress", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "subject", "message"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile collection indexed by Firebase Auth UID"
+    },
+    "/subscriptions/{subscriptionId}": {
+      "schema": { "$ref": "#/entities/Subscription" },
+      "description": "User active subscription records"
+    },
+    "/credit_wallets/{userId}": {
+      "schema": { "$ref": "#/entities/CreditWallet" },
+      "description": "User credit wallet balance"
+    },
+    "/credit_transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/CreditTransaction" },
+      "description": "Credit history logs"
+    },
+    "/video_projects/{projectId}": {
+      "schema": { "$ref": "#/entities/VideoProject" },
+      "description": "Video projects collection"
+    },
+    "/generated_videos/{videoId}": {
+      "schema": { "$ref": "#/entities/GeneratedVideo" },
+      "description": "Generated video assets collection"
+    },
+    "/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/Payment" },
+      "description": "Payment history"
+    },
+    "/ai_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AiLog" },
+      "description": "AI operation logs"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "User notifications"
+    },
+    "/favorites/{favoriteId}": {
+      "schema": { "$ref": "#/entities/Favorite" },
+      "description": "Saved favorite items"
+    },
+    "/admin_settings/{settingKey}": {
+      "schema": { "$ref": "#/entities/AdminSetting" },
+      "description": "Admin configuration settings"
+    },
+    "/support_tickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/SupportTicket" },
+      "description": "Customer support tickets"
+    }
+  }
+}

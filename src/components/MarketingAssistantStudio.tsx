@@ -1,0 +1,187 @@
+import React, { useState } from 'react';
+import { Bot, Sparkles, Target, Calendar, CheckCircle2, Copy, TrendingUp, Lightbulb } from 'lucide-react';
+import { User } from '../types';
+
+interface MarketingAssistantStudioProps {
+  user: User | null;
+  token?: string | null;
+  setUser?: (user: User) => void;
+  onSaveProject: (title: string, type: any, content: any, platform: string) => void;
+}
+
+export const MarketingAssistantStudio: React.FC<MarketingAssistantStudioProps> = ({ user, token, setUser, onSaveProject }) => {
+  const [product, setProduct] = useState('');
+  const [goal, setGoal] = useState('زيادة المبيعات والتحويلات المباشرة (ROAS)');
+  const [budget, setBudget] = useState('متوسطة (1,000$ - 5,000$)');
+  const [country, setCountry] = useState('المملكة العربية السعودية ودول الخليج');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [planResult, setPlanResult] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreatePlan = async () => {
+    if (!product.trim()) {
+      setError('يرجى كتابة اسم المنتج أو الخدمة');
+      return;
+    }
+    setError(null);
+    setIsAnalyzing(true);
+
+    try {
+      const res = await fetch('/api/ai/marketing-assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          product,
+          goal,
+          budget,
+          country,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setPlanResult(data.planText);
+        if (data.user && setUser) {
+          setUser(data.user);
+        }
+        onSaveProject(
+          `خطة تسويق: ${product.slice(0, 20)}`,
+          'marketing_plan',
+          { planText: data.planText, product, goal, budget, country },
+          'All'
+        );
+      } else {
+        throw new Error(data.error || 'فشلت عملية إعداد الخطة التسويقية');
+      }
+    } catch (e: any) {
+      setError(e.message || 'حدث خطأ أثناء بناء الخطة التسويقية الاستراتيجية');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" dir="rtl">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-teal-950/40 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
+        <div className="absolute top-0 left-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 space-y-3 max-w-2xl">
+          <div className="inline-flex items-center gap-2 bg-teal-500/10 border border-teal-500/30 text-teal-400 px-3 py-1 rounded-full text-xs font-bold">
+            <Bot className="w-4 h-4" />
+            <span>المستشار والاستراتيجي التسويقي الذكي</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black text-white">
+            المساعد التسويقي وتخطيط الحملات (AI Marketing Assistant)
+          </h1>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            احصل على استراتيجية إعلانية شاملة لمنتجك: تحليل الشريحة، الزوايا الإعلانية الأكثر تأثيراً، جدول محتوى إعلاني لمدة 7 أيام، وتوصيات التصوير.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Form */}
+        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
+          <div>
+            <label className="text-xs font-bold text-slate-300 block mb-1.5">اسم أو وصف المنتج التجاري:</label>
+            <input
+              type="text"
+              value={product}
+              onChange={(e) => setProduct(e.target.value)}
+              placeholder="مثال: تطبيق توصيل هدايا، عطور فاخرة، دورة تدريبية..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-teal-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-300 block mb-1.5">الهدف الرئيسي للحملة الإعلانية:</label>
+            <select
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              className="w-full bg-slate-950 text-slate-200 text-xs border border-slate-800 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:border-teal-500"
+            >
+              <option value="زيادة المبيعات والتحويلات المباشرة (ROAS)">زيادة المبيعات والتحويلات المباشرة (Sales & ROAS)</option>
+              <option value="بناء الوعي والعلامة التجارية (Brand Awareness)">بناء الوعي والعلامة التجارية (Brand Awareness)</option>
+              <option value="جمع بيانات العملاء المحتملين (Lead Generation)">جمع بيانات العملاء المحتملين (Lead Generation)</option>
+              <option value="إعادة الاستهداف وتنشيط العملاء">إعادة الاستهداف وتنشيط العملاء (Retargeting)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-300 block mb-1.5">السوق المستهدف:</label>
+            <input
+              type="text"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              placeholder="مثال: المملكة العربية السعودية، الإمارات، مصر..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-teal-500"
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 font-bold">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleCreatePlan}
+            disabled={isAnalyzing}
+            className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-teal-600/30 transition flex items-center justify-center gap-2"
+          >
+            {isAnalyzing ? (
+              <>
+                <Sparkles className="w-5 h-5 animate-spin" />
+                <span>جاري دراسة ورسم الاستراتيجية التسويقية...</span>
+              </>
+            ) : (
+              <>
+                <TrendingUp className="w-5 h-5" />
+                <span>إنشاء الخطة التسويقية الشاملة (نقطتان)</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Strategy Plan Output */}
+        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between shadow-xl min-h-[480px]">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-teal-400" />
+              <span>التقرير والاستراتيجية الموصى بها</span>
+            </h3>
+
+            {planResult && (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(planResult);
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2000);
+                }}
+                className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg transition"
+              >
+                {isCopied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{isCopied ? 'تم النسخ!' : 'نسخ التقرير'}</span>
+              </button>
+            )}
+          </div>
+
+          {planResult ? (
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap my-4 max-h-[400px] overflow-y-auto scrollbar-thin">
+              {planResult}
+            </div>
+          ) : (
+            <div className="my-auto text-center space-y-3 p-8 border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">
+              <Bot className="w-12 h-12 text-slate-600 mx-auto" />
+              <p className="text-xs text-slate-400">ستظهر نتائج الاستراتيجية والجدول الإعلاني المحلل بالذكاء الاصطناعي هنا</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

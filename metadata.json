@@ -1,0 +1,6 @@
+{
+  "name": "معلن | Moulin AI",
+  "description": "منصة عربية متكاملة لتوليد الإعلانات، الصور، والفيديوهات التجارية باستخدام الذكاء الاصطناعي",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
