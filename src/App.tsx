@@ -25,11 +25,10 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { User, Project, ProjectType } from './types';
 
 function MainApp() {
-  const { user, logout, setUser } = useAuth();
+  const { user, logout, setUser, getIdToken } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [videoInputMode, setVideoInputMode] = useState<'url' | 'manual'>('url');
-  const [token, setToken] = useState<string | null>(localStorage.getItem('molan_token'));
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
@@ -50,18 +49,21 @@ function MainApp() {
     }
   }, [theme]);
 
-  // Load projects on initial load
+  // Load projects whenever user logs in or updates
   useEffect(() => {
-    const storedToken = localStorage.getItem('molan_token');
-    if (storedToken) {
-      loadProjects(storedToken);
+    if (user) {
+      loadProjects();
+    } else {
+      setProjects([]);
     }
   }, [user]);
 
-  const loadProjects = async (authToken: string) => {
+  const loadProjects = async () => {
+    const liveToken = user?.token || (await getIdToken());
+    if (!liveToken) return;
     try {
       const res = await fetch('/api/projects', {
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: { Authorization: `Bearer ${liveToken}` },
       });
       const data = await res.json();
       if (data.success) {
@@ -74,7 +76,6 @@ function MainApp() {
 
   const handleLogout = async () => {
     localStorage.removeItem('molan_token');
-    setToken(null);
     setProjects([]);
     await logout();
     setIsLoginOpen(true);
@@ -91,12 +92,14 @@ function MainApp() {
   };
 
   const handleSaveProject = async (title: string, type: ProjectType, content: any, platform: string) => {
+    const liveToken = user?.token || (await getIdToken());
+    if (!liveToken) return;
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${liveToken}`,
         },
         body: JSON.stringify({
           title,
@@ -117,10 +120,12 @@ function MainApp() {
   };
 
   const handleDeleteProject = async (id: string) => {
+    const liveToken = user?.token || (await getIdToken());
+    if (!liveToken) return;
     try {
       const res = await fetch(`/api/projects/${id}`, {
         method: 'DELETE',
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { Authorization: `Bearer ${liveToken}` },
       });
       const data = await res.json();
       if (data.success) {
@@ -215,7 +220,7 @@ function MainApp() {
           {activeTab === 'video_creator' && (
             <AiVideoCreatorStudio
               user={legacyUser}
-              token={token}
+              token={user?.token || null}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -224,7 +229,7 @@ function MainApp() {
           {activeTab === 'video' && (
             <VideoGenerationStudio
               user={legacyUser}
-              token={token}
+              token={user?.token || null}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
               initialInputMode={videoInputMode}
@@ -249,7 +254,7 @@ function MainApp() {
           {activeTab === 'product_ads' && (
             <ProductAdsStudio
               user={legacyUser}
-              token={token}
+              token={user?.token || null}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
               onNavigateToVideoStudio={() => {
@@ -262,7 +267,7 @@ function MainApp() {
           {activeTab === 'image' && (
             <ImageStudio
               user={legacyUser}
-              token={token}
+              token={user?.token || null}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -271,7 +276,7 @@ function MainApp() {
           {activeTab === 'copywriter' && (
             <CopywriterStudio
               user={legacyUser}
-              token={token}
+              token={user?.token || null}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
               onSendScriptToVideoStudio={() => {
@@ -292,7 +297,7 @@ function MainApp() {
           {activeTab === 'translator' && (
             <TranslatorStudio
               user={legacyUser}
-              token={token}
+              token={user?.token || null}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -301,7 +306,7 @@ function MainApp() {
           {activeTab === 'assistant' && (
             <MarketingAssistantStudio
               user={legacyUser}
-              token={token}
+              token={user?.token || null}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -318,7 +323,7 @@ function MainApp() {
             <ProtectedRoute requireAdmin={true} onOpenLogin={() => setIsLoginOpen(true)}>
               <AdminDashboard
                 currentUser={legacyUser}
-                token={token}
+                token={user?.token || null}
               />
             </ProtectedRoute>
           )}
@@ -374,7 +379,7 @@ function MainApp() {
         isOpen={isPricingOpen}
         onClose={() => setIsPricingOpen(false)}
         user={legacyUser}
-        token={token}
+        token={user?.token || null}
         onUpdateSubscription={handleUpdateSubscription}
         setUser={(u: any) => setUser(u)}
       />

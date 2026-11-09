@@ -33,9 +33,31 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && (isOwner(userId) || isAdmin());
+      // On create, user can only create their own document and role MUST be 'user', credits MUST be 50 or omitted
+      allow create: if isSignedIn() && isOwner(userId) &&
+        (!('role' in request.resource.data) || request.resource.data.role == 'user') &&
+        (!('credits' in request.resource.data) || request.resource.data.credits == 50);
+      // On update, non-admin user CANNOT modify role, credits, tier, accountStatus, pendingReservedCredits
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'credits', 'tier', 'accountStatus', 'pendingReservedCredits']))
+      );
       allow delete: if isAdmin();
+    }
+
+    // Projects Collection (supports both 'projects' and 'video_projects')
+    match /projects/{projectId} {
+      allow get, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /video_projects/{projectId} {
+      allow get, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // Subscriptions Collection
@@ -49,7 +71,7 @@ service cloud.firestore {
     match /credit_wallets/{userId} {
       allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      allow create, update: if isAdmin(); // Wallet changes must be server/admin controlled
+      allow create, update, delete: if isAdmin();
     }
 
     // Credit Transactions Log
@@ -58,12 +80,10 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    // Video Projects
-    match /video_projects/{projectId} {
-      allow get, list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    // Coupons Collection
+    match /coupons/{couponCode} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     // Generated Videos
@@ -113,6 +133,5 @@ service cloud.firestore {
       allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
       allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
-
   }
 }

@@ -6,11 +6,40 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 import { GoogleGenAI } from '@google/genai';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, FieldValue, Transaction, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Firebase Admin SDK for project ywsf-al-zaka
+if (!getApps().length) {
+  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || 'ywsf-al-zaka';
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    : undefined;
+
+  if (clientEmail && privateKey) {
+    initializeApp({
+      credential: cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+  } else {
+    initializeApp({
+      projectId,
+    });
+  }
+}
+
+const adminAuth = getAuth();
+const adminDb = getFirestore();
 
 // Dynamic GoogleGenAI client (Server-side only)
 function getGeminiApiKey(): string {
@@ -104,21 +133,12 @@ export function parseGeminiError(err: any): GeminiDiagnosticResult {
   };
 }
 
-// Database & Data Layer setup
-const DATA_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA_DIR, 'moulin_db.json');
-const BACKUP_DIR = path.join(DATA_DIR, 'backups');
-
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-if (!fs.existsSync(BACKUP_DIR)) {
-  fs.mkdirSync(BACKUP_DIR, { recursive: true });
-}
-
+// User Record Interface for Server Context
 export interface DBUser {
   id: string;
+  uid: string;
   name: string;
+  fullName: string;
   email: string;
   passwordHash: string;
   credits: number;
@@ -126,22 +146,8 @@ export interface DBUser {
   tier: 'free' | 'pro' | 'enterprise';
   role: 'admin' | 'user';
   avatar: string;
-  createdAt: string;
-}
-
-export interface DBSession {
-  token: string;
-  userId: string;
-  createdAt: string;
-  expiresAt: string;
-}
-
-export interface DBTransaction {
-  id: string;
-  userId: string;
-  type: 'credit_deduction' | 'credit_addition' | 'subscription' | 'refund' | 'coupon';
-  amount: number;
-  description: string;
+  photoURL: string;
+  accountStatus: string;
   createdAt: string;
 }
 
@@ -158,186 +164,8 @@ export interface DBProject {
   createdAt: string;
 }
 
-export interface DBCoupon {
-  code: string;
-  credits: number;
-  maxUses: number;
-  usedCount: number;
-  expiresAt: string;
-  usedBy: string[];
-}
-
-export interface DBAuditLog {
-  id: string;
-  userId: string;
-  action: string;
-  details: any;
-  ip?: string;
-  createdAt: string;
-}
-
-export interface Database {
-  users: DBUser[];
-  sessions: DBSession[];
-  transactions: DBTransaction[];
-  projects: DBProject[];
-  coupons: DBCoupon[];
-  processedPayments: string[];
-  auditLogs: DBAuditLog[];
-}
-
-// Password Hashing Utility
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password: string, stored: string): boolean {
-  try {
-    const [salt, key] = stored.split(':');
-    if (!salt || !key) return false;
-    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
-    return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(key, 'hex'));
-  } catch {
-    return false;
-  }
-}
-
-// Atomic Database Access Layer with Mutex Queue Lock
-let saveQueue = Promise.resolve();
-
-function saveDBAtomic(db: Database) {
-  saveQueue = saveQueue.then(() => {
-    try {
-      const tmpFile = `${DB_FILE}.tmp`;
-      fs.writeFileSync(tmpFile, JSON.stringify(db, null, 2), 'utf-8');
-      fs.renameSync(tmpFile, DB_FILE);
-    } catch (e) {
-      console.error('❌ Error saving DB atomically:', e);
-    }
-  });
-}
-
-function cleanExpiredSessions(db: Database): boolean {
-  const now = new Date();
-  const initialLength = db.sessions.length;
-  db.sessions = db.sessions.filter(s => new Date(s.expiresAt) > now);
-  return db.sessions.length !== initialLength;
-}
-
-function loadDB(): Database {
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      const loadedDB: Database = {
-        users: parsed.users || [],
-        sessions: parsed.sessions || [],
-        transactions: parsed.transactions || [],
-        projects: parsed.projects || [],
-        coupons: parsed.coupons || getInitialCoupons(),
-        processedPayments: parsed.processedPayments || [],
-        auditLogs: parsed.auditLogs || [],
-      };
-
-      let changed = false;
-      loadedDB.users.forEach(u => {
-        if (!u.role) {
-          u.role = u.email.toLowerCase() === 'ahmed@moulin.ai' ? 'admin' : 'user';
-          changed = true;
-        }
-        if (u.role === 'admin' && verifyPassword('admin123456', u.passwordHash)) {
-          u.passwordHash = hashPassword(process.env.ADMIN_INITIAL_PASSWORD || 'MolanAdminSecured2026!');
-          changed = true;
-        }
-        u.pendingReservedCredits = 0;
-      });
-
-      if (cleanExpiredSessions(loadedDB)) {
-        changed = true;
-      }
-
-      if (changed) {
-        saveDBAtomic(loadedDB);
-      }
-
-      return loadedDB;
-    }
-  } catch (e) {
-    console.error('⚠️ Warning loading DB file:', e);
-  }
-
-  // Seed initial admin user ONLY if DB file is fresh/missing
-  const initialAdminPass = process.env.ADMIN_INITIAL_PASSWORD || 'MolanAdminSecured2026!';
-  const adminUser: DBUser = {
-    id: 'usr_admin',
-    name: 'أحمد المحمود (مدير النظام)',
-    email: 'ahmed@moulin.ai',
-    passwordHash: hashPassword(initialAdminPass),
-    credits: 1000,
-    pendingReservedCredits: 0,
-    tier: 'enterprise',
-    role: 'admin',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    createdAt: new Date().toISOString(),
-  };
-
-  const defaultDB: Database = {
-    users: [adminUser],
-    sessions: [],
-    transactions: [
-      {
-        id: 'tx_init',
-        userId: 'usr_admin',
-        type: 'credit_addition',
-        amount: 1000,
-        description: 'رصيد الحساب الإداري الرئيسي',
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    projects: [],
-    coupons: getInitialCoupons(),
-    processedPayments: [],
-    auditLogs: [],
-  };
-
-  saveDBAtomic(defaultDB);
-  return defaultDB;
-}
-
-function getInitialCoupons(): DBCoupon[] {
-  return [
-    { code: 'MOUULIN2026', credits: 100, maxUses: 1000, usedCount: 0, expiresAt: '2028-12-31T23:59:59.000Z', usedBy: [] },
-    { code: 'WELCOME100', credits: 100, maxUses: 500, usedCount: 0, expiresAt: '2028-12-31T23:59:59.000Z', usedBy: [] },
-    { code: 'PRO2026', credits: 250, maxUses: 200, usedCount: 0, expiresAt: '2028-12-31T23:59:59.000Z', usedBy: [] },
-    { code: 'ARCADS', credits: 50, maxUses: 500, usedCount: 0, expiresAt: '2028-12-31T23:59:59.000Z', usedBy: [] },
-    { code: 'VIP500', credits: 500, maxUses: 50, usedCount: 0, expiresAt: '2028-12-31T23:59:59.000Z', usedBy: [] },
-  ];
-}
-
-// Startup Backup Routine
-function createStartupBackup() {
-  try {
-    if (fs.existsSync(DB_FILE)) {
-      const backupPath = path.join(BACKUP_DIR, `moulin_db_${Date.now()}.json`);
-      fs.copyFileSync(DB_FILE, backupPath);
-      const backups = fs.readdirSync(BACKUP_DIR).sort();
-      if (backups.length > 10) {
-        for (let i = 0; i < backups.length - 10; i++) {
-          fs.unlinkSync(path.join(BACKUP_DIR, backups[i]));
-        }
-      }
-    }
-  } catch (e) {
-    console.error('Backup creation error:', e);
-  }
-}
-createStartupBackup();
-
 // Rate Limiters
 const globalRateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const authRateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 function createRateLimiter(map: Map<string, { count: number; resetTime: number }>, windowMs: number, maxRequests: number, errMsg: string) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -361,7 +189,6 @@ function createRateLimiter(map: Map<string, { count: number; resetTime: number }
 }
 
 const globalLimiter = createRateLimiter(globalRateLimitMap, 60 * 1000, 100, 'تم تجاوز الحد المسموح من الطلبات. يرجى الانتظار دقيقة.');
-const authLimiter = createRateLimiter(authRateLimitMap, 15 * 60 * 1000, 15, 'تمت محاولة تسجيل الدخول بعدد تجاوز المسموح. يرجى الانتظار 15 دقيقة.');
 
 // Centralized Validation Helpers
 function isValidString(val: any, minLen = 1, maxLen = 3000): boolean {
@@ -380,14 +207,12 @@ function validateBase64Image(dataUri: any, maxSizeBytes = 15 * 1024 * 1024): { v
     return { valid: false, error: 'بيانات الصورة مفقودة أو غير صالحة' };
   }
 
-  // Support all common image formats and smartphone headers (including JPG, HEIC, HEIF, WEBP, PNG, GIF)
   const match = dataUri.match(/^data:(image\/(jpeg|jpg|pjpeg|png|x-png|webp|gif|heic|heif|avif|bmp|svg\+xml));base64,(.+)$/i);
   if (!match) {
     return { valid: false, error: 'نوع الملف غير مدعوم. الصيغ المدعومة هي: JPG, JPEG, PNG, WEBP, GIF, HEIC, HEIF' };
   }
 
   let mimeType = match[1].toLowerCase();
-  // Normalize mime types for Gemini and storage consistency
   if (mimeType === 'image/jpg' || mimeType === 'image/pjpeg' || mimeType === 'image/heic' || mimeType === 'image/heif') {
     mimeType = 'image/jpeg';
   } else if (mimeType === 'image/x-png') {
@@ -406,7 +231,6 @@ function validateBase64Image(dataUri: any, maxSizeBytes = 15 * 1024 * 1024): { v
       return { valid: false, error: 'بيانات الصورة تالفة' };
     }
 
-    // Verify Magic Bytes
     let magicMatch = false;
     const asciiHead = buffer.toString('ascii', 0, 32);
 
@@ -438,12 +262,11 @@ async function resolveAndProcessImageInput(
   maxSizeBytes = 15 * 1024 * 1024
 ): Promise<{ valid: boolean; mimeType?: string; data?: string; error?: string }> {
   if (!imageInput || typeof imageInput !== 'string' || !imageInput.trim()) {
-    return { valid: true }; // Image is optional; empty input is valid without image
+    return { valid: true };
   }
 
   const trimmed = imageInput.trim();
 
-  // Case 1: Base64 Data URI
   if (trimmed.startsWith('data:')) {
     const val = validateBase64Image(trimmed, maxSizeBytes);
     if (!val.valid) {
@@ -457,7 +280,6 @@ async function resolveAndProcessImageInput(
     return { valid: true, mimeType: val.mimeType || 'image/jpeg', data: base64Data };
   }
 
-  // Case 2: HTTP / HTTPS Remote Image URL
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
     try {
       const parsedUrl = new URL(trimmed);
@@ -467,7 +289,6 @@ async function resolveAndProcessImageInput(
       }
 
       const hostname = parsedUrl.hostname.toLowerCase();
-      // Strict SSRF Prevention: Block internal networks, loopbacks, metadata IPs
       const isInternal =
         hostname === 'localhost' ||
         hostname === '127.0.0.1' ||
@@ -555,7 +376,6 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
     const parsedUrl = new URL(trimmed);
     const hostname = parsedUrl.hostname.toLowerCase();
 
-    // Strict SSRF Prevention: Block internal/loopback IPs & metadata URLs
     const isInternal =
       hostname === 'localhost' ||
       hostname === '127.0.0.1' ||
@@ -616,7 +436,6 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
       };
     }
 
-    // 1. Extract Page Title
     let title = '';
     const ogTitleMatch = htmlText.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
                          htmlText.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
@@ -627,7 +446,6 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
       if (titleMatch) title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
     }
 
-    // 2. Extract Page Description
     let description = '';
     const ogDescMatch = htmlText.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
                         htmlText.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
@@ -635,7 +453,6 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
       description = ogDescMatch[1].trim();
     }
 
-    // Clean html to get visible text content
     const bodyText = htmlText
       .replace(/<script[\s\S]*?<\/script>/gi, '')
       .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -645,7 +462,6 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
       .trim()
       .slice(0, 4000);
 
-    // 3. Extract Images (og:image, twitter:image, product images)
     const extractedImages: string[] = [];
     const ogImgMatches = Array.from(htmlText.matchAll(/<meta[^>]*property=["'](?:og|twitter):image["'][^>]*content=["']([^"']+)["']/gi));
     for (const m of ogImgMatches) {
@@ -663,7 +479,6 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
       }
     }
 
-    // 4. Extract Price
     let extractedPrice = '';
     const priceMatch = htmlText.match(/(\d+(?:\.\d{1,2})?\s*(?:ر\.س|SAR|SR|\$|AED|EGP|ريال))/i) ||
                        htmlText.match(/(?:price|السعر|سعر)[^:\d]*(\d+(?:\.\d{1,2})?)/i);
@@ -671,7 +486,6 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
       extractedPrice = priceMatch[1] || priceMatch[0];
     }
 
-    // 5. Extract Logo
     let extractedLogo = '';
     const logoMatch = htmlText.match(/<link[^>]*rel=["'](?:shortcut )?icon["'][^>]*href=["']([^"']+)["']/i) ||
                       htmlText.match(/<img[^>]*src=["']([^"']*(?:logo|brand)[^"']*)["']/i);
@@ -701,26 +515,53 @@ async function fetchAndAnalyzeUrlContent(targetUrl: string): Promise<{
   }
 }
 
-// In-Memory Credit Reservation Tracker for Concurrency Protection
-const pendingCreditReservations = new Map<string, number>();
-
-function reserveUserCredits(userId: string, cost: number, currentCredits: number): boolean {
-  const currentPending = pendingCreditReservations.get(userId) || 0;
-  if (currentCredits - currentPending < cost) {
-    return false;
-  }
-  pendingCreditReservations.set(userId, currentPending + cost);
-  return true;
+// Atomic Firestore Credit Deduction Helper
+async function deductCreditsFirestore(uid: string, cost: number, description: string): Promise<number> {
+  const userRef = adminDb.collection('users').doc(uid);
+  return await adminDb.runTransaction(async (transaction: Transaction) => {
+    const userSnap = await transaction.get(userRef);
+    if (!userSnap.exists) {
+      throw new Error('حساب المستخدم غير موجود في قاعدة البيانات');
+    }
+    const data = userSnap.data() || {};
+    const currentCredits = data.credits ?? 0;
+    if (currentCredits < cost) {
+      throw new Error(`رصيد النقاط غير كافٍ. تتطلب العملية ${cost} نقطة، رصيدك الحالي: ${currentCredits}`);
+    }
+    const newCredits = currentCredits - cost;
+    transaction.update(userRef, {
+      credits: newCredits,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    const txRef = adminDb.collection('credit_transactions').doc();
+    transaction.set(txRef, {
+      id: txRef.id,
+      userId: uid,
+      type: 'credit_deduction',
+      amount: -cost,
+      description,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return newCredits;
+  });
 }
 
-function releaseUserCredits(userId: string, cost: number) {
-  const currentPending = pendingCreditReservations.get(userId) || 0;
-  const nextPending = Math.max(0, currentPending - cost);
-  if (nextPending === 0) {
-    pendingCreditReservations.delete(userId);
-  } else {
-    pendingCreditReservations.set(userId, nextPending);
-  }
+// Atomic Firestore Project Storage Helper
+async function saveProjectFirestore(userId: string, projectData: { title: string; type: string; platform?: string; status?: string; progress?: number; content: any }): Promise<DBProject> {
+  const prjRef = adminDb.collection('projects').doc();
+  const prj: DBProject = {
+    id: prjRef.id,
+    userId,
+    title: projectData.title,
+    type: projectData.type as any,
+    platform: projectData.platform || '9:16',
+    status: (projectData.status as any) || 'completed',
+    progress: projectData.progress ?? 100,
+    content: projectData.content || {},
+    createdAt: new Date().toISOString(),
+  };
+  await prjRef.set(prj);
+  return prj;
 }
 
 // Safe Centralized Internal Error Handler
@@ -734,7 +575,7 @@ function handleServerError(res: express.Response, error: any, contextMessage: st
   });
 }
 
-// Custom Request Interface with Authenticated User
+// Custom Request Interface with Authenticated Firebase User
 export interface AuthenticatedRequest extends express.Request {
   user?: DBUser;
   token?: string;
@@ -757,79 +598,67 @@ function securityHeaders(req: express.Request, res: express.Response, next: expr
   next();
 }
 
-// Session Authentication Middleware (Strict)
-function authenticateToken(req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) {
+// Centralized Firebase Admin Token Authentication Middleware
+async function authenticateToken(req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : (req.headers['x-access-token'] as string);
 
   if (!token || typeof token !== 'string' || !token.trim() || token === 'demo-guest-token') {
-    return res.status(401).json({ success: false, error: 'غير مصرح: يرجى تسجيل الدخول للوصول لهذه الخدمة' });
+    return res.status(401).json({ success: false, error: 'غير مصرح: يرجى تسجيل الدخول بحسابك في MOLAN AI للوصول لهذه الخدمة' });
   }
 
-  const db = loadDB();
-  cleanExpiredSessions(db);
+  try {
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const uid = decodedToken.uid;
+    const email = (decodedToken.email || '').toLowerCase();
 
-  const session = db.sessions.find(s => s.token === token && new Date(s.expiresAt) > new Date());
+    const userRef = adminDb.collection('users').doc(uid);
+    const userSnap = await userRef.get();
 
-  if (!session) {
-    return res.status(401).json({ success: false, error: 'جلسة التوثيق منتهية أو ملغاة. يرجى إعادة تسجيل الدخول.' });
-  }
-
-  const user = db.users.find(u => u.id === session.userId);
-  if (!user) {
-    return res.status(401).json({ success: false, error: 'حساب المستخدم غير موجود' });
-  }
-
-  req.user = user;
-  req.token = token;
-  next();
-}
-
-// Relaxed Authentication Middleware for Testing & Public AI Features
-function optionalAuthenticateToken(req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : (req.headers['x-access-token'] as string);
-
-  const db = loadDB();
-  cleanExpiredSessions(db);
-
-  if (token && typeof token === 'string' && token.trim() && token !== 'demo-guest-token') {
-    const session = db.sessions.find(s => s.token === token && new Date(s.expiresAt) > new Date());
-    if (session) {
-      const user = db.users.find(u => u.id === session.userId);
-      if (user) {
-        req.user = user;
-        req.token = token;
-        return next();
-      }
+    let userData: any;
+    if (userSnap.exists) {
+      userData = userSnap.data();
+    } else {
+      const isAdmin = email === 'ahmed@moulin.ai' || email === 'bdwe.swerke.bdwe@gmail.com';
+      userData = {
+        uid,
+        email,
+        fullName: decodedToken.name || (email ? email.split('@')[0] : 'مستخدم MOLAN AI'),
+        photoURL: decodedToken.picture || '',
+        provider: decodedToken.firebase?.sign_in_provider || 'google.com',
+        emailVerified: decodedToken.email_verified || false,
+        role: isAdmin ? 'admin' : 'user',
+        credits: 50,
+        tier: 'free',
+        accountStatus: 'active',
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      await userRef.set(userData);
     }
-  }
 
-  // Fallback Guest User for seamless testing without forced login
-  let guestUser = db.users.find(u => u.id === 'usr_guest');
-  if (!guestUser) {
-    guestUser = {
-      id: 'usr_guest',
-      name: 'زائر للتجربة',
-      email: 'guest@moulin.ai',
+    req.user = {
+      id: uid,
+      uid,
+      email: userData.email || email,
+      name: userData.fullName || decodedToken.name || 'مستخدم MOLAN AI',
+      fullName: userData.fullName || decodedToken.name || 'مستخدم MOLAN AI',
+      photoURL: userData.photoURL || '',
+      avatar: userData.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      role: userData.role || 'user',
+      credits: userData.credits ?? 50,
+      tier: userData.tier || 'free',
+      accountStatus: userData.accountStatus || 'active',
       passwordHash: '',
-      credits: 500,
-      pendingReservedCredits: 0,
-      tier: 'pro',
-      role: 'user',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-      createdAt: new Date().toISOString(),
+      createdAt: userData.createdAt ? String(userData.createdAt) : new Date().toISOString(),
     };
-    db.users.push(guestUser);
-    saveDBAtomic(db);
-  } else if (guestUser.credits < 50) {
-    guestUser.credits = 500;
-    saveDBAtomic(db);
-  }
 
-  req.user = guestUser;
-  req.token = 'demo-guest-token';
-  next();
+    req.token = token;
+    next();
+  } catch (err: any) {
+    console.warn('Firebase ID Token verification error:', err?.message || err);
+    return res.status(401).json({ success: false, error: 'جلسة تسجيل الدخول ملغاة أو منتهية. يرجى إعادة تسجيل الدخول.' });
+  }
 }
 
 // Strict Admin Authorization Middleware
@@ -838,30 +667,6 @@ function requireAdmin(req: AuthenticatedRequest, res: express.Response, next: ex
     return res.status(403).json({ success: false, error: 'محظور: هذا المسار يتطلب صلاحيات المدير المسؤول' });
   }
   next();
-}
-
-// Helper function to create session
-function createSessionForUser(db: Database, userId: string): DBSession {
-  const token = 'session_' + crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-  const session: DBSession = {
-    token,
-    userId,
-    createdAt: new Date().toISOString(),
-    expiresAt,
-  };
-  db.sessions.push(session);
-  return session;
-}
-
-// Sanitized Safe User DTO
-function toSafeUser(user: DBUser, token?: string) {
-  const { passwordHash, pendingReservedCredits, ...safe } = user;
-  return {
-    ...safe,
-    isAdmin: user.role === 'admin',
-    token,
-  };
 }
 
 async function startServer() {
@@ -881,30 +686,30 @@ async function startServer() {
     });
   });
 
-async function generateTextWithFallback(contents: string): Promise<string> {
-  const client = getGenAIClient();
-  try {
-    const res = await client.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents,
-    });
-    if (res.text) return res.text;
-  } catch (err: any) {
-    const errMsg = err?.message || String(err || '');
-    if (errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand')) {
-      await new Promise(r => setTimeout(r, 600));
-      const resFallback = await client.models.generateContent({
-        model: 'gemini-4-argon',
+  async function generateTextWithFallback(contents: string): Promise<string> {
+    const client = getGenAIClient();
+    try {
+      const res = await client.models.generateContent({
+        model: 'gemini-3.8-flash',
         contents,
       });
-      if (resFallback.text) return resFallback.text;
+      if (res.text) return res.text;
+    } catch (err: any) {
+      const errMsg = err?.message || String(err || '');
+      if (errMsg.includes('503') || errMsg.includes('UNAVAILABLE') || errMsg.includes('high demand')) {
+        await new Promise(r => setTimeout(r, 600));
+        const resFallback = await client.models.generateContent({
+          model: 'gemini-4-argon',
+          contents,
+        });
+        if (resFallback.text) return resFallback.text;
+      }
+      throw err;
     }
-    throw err;
+    return '';
   }
-  return '';
-}
 
-  // Real Server-Side Gemini API Key Connection Diagnostic Endpoint
+  // Gemini Connection Diagnostics Endpoint
   app.get('/api/ai/test-connection', async (req, res) => {
     const rawKey = getGeminiApiKey();
     if (!hasGeminiApiKey()) {
@@ -924,7 +729,6 @@ async function generateTextWithFallback(contents: string): Promise<string> {
     let textTest: any = { success: false };
     let videoTest: any = { success: false };
 
-    // Fast Test: Text Generation Model (gemini-3.8-flash with gemini-4-argon fallback)
     try {
       const outputText = await generateTextWithFallback('Ping connection test');
       textTest = {
@@ -966,9 +770,7 @@ async function generateTextWithFallback(contents: string): Promise<string> {
       success: textTest.success,
       hasKey: true,
       maskedKey,
-      overallStatus: overallReady
-        ? 'READY'
-        : textTest.code,
+      overallStatus: overallReady ? 'READY' : textTest.code,
       diagnostics: {
         textModel: textTest,
         videoModel: videoTest,
@@ -984,145 +786,46 @@ async function generateTextWithFallback(contents: string): Promise<string> {
   // AUTHENTICATION ROUTES
   // ==========================================
 
-  // Register New Account
-  app.post('/api/auth/register', authLimiter, (req, res) => {
-    try {
-      const { email, password, name } = req.body;
-
-      if (!isValidString(email, 5, 100) || !email.includes('@')) {
-        return res.status(400).json({ success: false, error: 'البريد الإلكتروني غير صحيح' });
-      }
-      if (!isValidString(password, 6, 128)) {
-        return res.status(400).json({ success: false, error: 'كلمة المرور يجب أن لا تقل عن 6 أحرف' });
-      }
-
-      const db = loadDB();
-      const cleanEmail = email.trim().toLowerCase();
-
-      const existingUser = db.users.find(u => u.email.toLowerCase() === cleanEmail);
-      if (existingUser) {
-        return res.status(400).json({ success: false, error: 'البريد الإلكتروني مسجل بالفعل. يرجى تسجيل الدخول.' });
-      }
-
-      const role: 'admin' | 'user' = 'user';
-
-      const newUser: DBUser = {
-        id: 'usr_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex'),
-        name: name && typeof name === 'string' ? name.trim().slice(0, 50) : cleanEmail.split('@')[0],
-        email: cleanEmail,
-        passwordHash: hashPassword(password),
-        credits: 50,
-        pendingReservedCredits: 0,
-        tier: 'free',
-        role,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-        createdAt: new Date().toISOString(),
-      };
-
-      db.users.push(newUser);
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: newUser.id,
-        type: 'credit_addition',
-        amount: 50,
-        description: 'رصيد الترحيب بالحساب الجديد',
-        createdAt: new Date().toISOString(),
-      });
-
-      const session = createSessionForUser(db, newUser.id);
-      saveDBAtomic(db);
-
-      res.status(201).json({
-        success: true,
-        user: toSafeUser(newUser, session.token),
-        token: session.token,
-      });
-    } catch (err) {
-      handleServerError(res, err, 'Auth Register Exception');
-    }
-  });
-
-  // Login Existing Account
-  app.post('/api/auth/login', authLimiter, (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      if (!isValidString(email, 3, 100)) {
-        return res.status(400).json({ success: false, error: 'البريد الإلكتروني مطلوب' });
-      }
-
-      if (!isValidString(password, 1, 128)) {
-        return res.status(401).json({ success: false, error: 'كلمة المرور مطلوبة وإلزامية لتسجيل الدخول' });
-      }
-
-      const db = loadDB();
-      const cleanEmail = email.trim().toLowerCase();
-      const user = db.users.find(u => u.email.toLowerCase() === cleanEmail);
-
-      if (!user) {
-        return res.status(401).json({ success: false, error: 'البريد الإلكتروني غير مسجل' });
-      }
-
-      if (!verifyPassword(password, user.passwordHash)) {
-        return res.status(401).json({ success: false, error: 'كلمة المرور غير صحيحة' });
-      }
-
-      const session = createSessionForUser(db, user.id);
-      saveDBAtomic(db);
-
-      res.json({
-        success: true,
-        user: toSafeUser(user, session.token),
-        token: session.token,
-      });
-    } catch (err) {
-      handleServerError(res, err, 'Auth Login Exception');
-    }
-  });
-
-  // Logout & Invalidate Session
-  app.post('/api/auth/logout', authenticateToken, (req: AuthenticatedRequest, res) => {
-    try {
-      const db = loadDB();
-      db.sessions = db.sessions.filter(s => s.token !== req.token);
-      saveDBAtomic(db);
-      res.json({ success: true, message: 'تم تسجيل الخروج وإبطال الجلسة بنجاح' });
-    } catch (err) {
-      handleServerError(res, err, 'Auth Logout Exception');
-    }
-  });
-
-  // Get Current Profile
+  // Get Current Profile (Firestore Backed)
   app.get('/api/auth/me', authenticateToken, (req: AuthenticatedRequest, res) => {
     res.json({
       success: true,
-      user: toSafeUser(req.user!, req.token),
+      user: {
+        uid: req.user!.uid,
+        id: req.user!.uid,
+        email: req.user!.email,
+        name: req.user!.fullName,
+        displayName: req.user!.fullName,
+        photoURL: req.user!.photoURL,
+        role: req.user!.role,
+        credits: req.user!.credits,
+        tier: req.user!.tier,
+        accountStatus: req.user!.accountStatus,
+        isAdmin: req.user!.role === 'admin',
+      },
     });
   });
 
   // ==========================================
-  // PROJECTS MANAGEMENT (IDOR PROTECTED)
+  // PROJECTS MANAGEMENT (FIRESTORE BACKED)
   // ==========================================
 
-  // Get User Projects
-  app.get('/api/projects/:userId?', optionalAuthenticateToken, (req: AuthenticatedRequest, res) => {
+  app.get('/api/projects/:userId?', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
-      const targetUserId = req.params.userId || req.user!.id;
-      
-      if (targetUserId !== req.user!.id && req.user!.role !== 'admin') {
+      const targetUserId = req.params.userId || req.user!.uid;
+      if (targetUserId !== req.user!.uid && req.user!.role !== 'admin') {
         return res.status(403).json({ success: false, error: 'محظور: لا تملك صلاحية عرض مشاريع حساب آخر' });
       }
 
-      const db = loadDB();
-      const userProjects = db.projects.filter(p => p.userId === targetUserId);
-      res.json({ success: true, projects: userProjects });
+      const snap = await adminDb.collection('projects').where('userId', '==', targetUserId).get();
+      const projects = snap.docs.map((doc: QueryDocumentSnapshot) => doc.data());
+      res.json({ success: true, projects });
     } catch (err) {
       handleServerError(res, err, 'Get Projects Exception');
     }
   });
 
-  // Create & Save Project
-  app.post('/api/projects', optionalAuthenticateToken, (req: AuthenticatedRequest, res) => {
+  app.post('/api/projects', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { title, type, platform, status, progress, content } = req.body;
 
@@ -1130,47 +833,29 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         return res.status(400).json({ success: false, error: 'عنوان المشروع مطلوب' });
       }
 
-      const db = loadDB();
-      const newProject: DBProject = {
-        id: 'prj_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex'),
-        userId: req.user!.id,
-        title: title.trim().slice(0, 150),
-        type: type || 'video',
-        platform: platform || '9:16',
-        status: status || 'completed',
-        progress: typeof progress === 'number' ? Math.min(100, Math.max(0, progress)) : 100,
-        content: content || {},
-        createdAt: new Date().toISOString(),
-      };
-
-      db.projects.unshift(newProject);
-      saveDBAtomic(db);
-
+      const newProject = await saveProjectFirestore(req.user!.uid, { title, type, platform, status, progress, content });
       res.status(201).json({ success: true, project: newProject });
     } catch (err) {
       handleServerError(res, err, 'Create Project Exception');
     }
   });
 
-  // Delete Project
-  app.delete('/api/projects/:id', authenticateToken, (req: AuthenticatedRequest, res) => {
+  app.delete('/api/projects/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { id } = req.params;
-      const db = loadDB();
+      const docRef = adminDb.collection('projects').doc(id);
+      const docSnap = await docRef.get();
 
-      const projectIndex = db.projects.findIndex(p => p.id === id);
-      if (projectIndex === -1) {
+      if (!docSnap.exists) {
         return res.status(404).json({ success: false, error: 'المشروع غير موجود' });
       }
 
-      const project = db.projects[projectIndex];
-      if (project.userId !== req.user!.id && req.user!.role !== 'admin') {
+      const prjData = docSnap.data() || {};
+      if (prjData.userId !== req.user!.uid && req.user!.role !== 'admin') {
         return res.status(403).json({ success: false, error: 'محظور: لا تملك صلاحية حذف هذا المشروع' });
       }
 
-      db.projects.splice(projectIndex, 1);
-      saveDBAtomic(db);
-
+      await docRef.delete();
       res.json({ success: true, message: 'تم حذف المشروع بنجاح' });
     } catch (err) {
       handleServerError(res, err, 'Delete Project Exception');
@@ -1207,19 +892,12 @@ async function generateTextWithFallback(contents: string): Promise<string> {
   });
 
   // ==========================================
-  // AI SERVICES (STRICT CREDIT CONCURRENCY & ZERO CREDIT LOSS)
+  // AI SERVICES (FIRESTORE ATOMIC CREDIT DEDUCTION & ZERO LOSS)
   // ==========================================
 
-  // URL to Ad Content Scraper & Gemini AI Synthesizer Endpoint
-  app.post('/api/ai/analyze-url', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/analyze-url', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 1;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'المستخدم غير موجود' });
-
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({ success: false, error: 'رصيد النقاط غير كافٍ لتحليل الرابط (التكلفة: 1 نقطة)' });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { url } = req.body;
@@ -1227,7 +905,6 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         return res.status(400).json({ success: false, error: 'الرابط مطلوب ويجب أن يبدأ بـ http:// أو https://' });
       }
 
-      // Safe SSRF-protected page scraper
       const pageResult = await fetchAndAnalyzeUrlContent(url);
       if (!pageResult.success) {
         return res.status(400).json({ success: false, error: pageResult.error });
@@ -1240,7 +917,6 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         });
       }
 
-      // AI Synthesis via Gemini Text API
       const synthPrompt = `أنت خبير إعلانات ومحلل منتجات ومتاجر إلكترونية.
 لقد قمت بتحليل محتوى الرابط التالي (${pageResult.url}):
 عنوان الصفحة: "${pageResult.title}"
@@ -1280,22 +956,15 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         masterPrompt,
       };
 
-      // Deduct credit strictly AFTER successful analysis
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `تحليل رابط موقع/منتج (URL TO AD): ${title.slice(0, 20)}`,
-        createdAt: new Date().toISOString(),
-      });
-      saveDBAtomic(db);
+      const newCredits = await deductCreditsFirestore(uid, cost, `تحليل رابط موقع/منتج (URL TO AD): ${title.slice(0, 20)}`);
 
       res.json({
         success: true,
         analysis,
-        user: toSafeUser(currentUser, req.token),
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
       });
     } catch (err: any) {
       console.error('Error in analyze-url:', err?.message || err);
@@ -1306,25 +975,12 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
-  // Video Studio Generation
-  app.post('/api/ai/video-generate', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/video-generate', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 10;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'المستخدم غير موجود' });
-
-    // Race condition check via in-memory credit reservation
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({
-        success: false,
-        error: `رصيد النقاط المتاح غير كافٍ لتشغيل العملية أو توجد طلبات جارية معالجة. التكلفة: ${cost} نقاط. رصيدك الحالي: ${currentUser.credits}`,
-      });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { product, image, aspectRatio, duration, style, voice, language } = req.body;
@@ -1333,7 +989,6 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         return res.status(400).json({ success: false, error: 'وصف المنتج مطلوب ويجب أن يكون بين حرفين و3000 حرف' });
       }
 
-      // Safely process image input (supports Base64 data URIs, HTTP/HTTPS URLs with SSRF protection, or optional image)
       const imageResult = await resolveAndProcessImageInput(image);
       if (!imageResult.valid) {
         return res.status(400).json({ success: false, error: imageResult.error });
@@ -1342,7 +997,7 @@ async function generateTextWithFallback(contents: string): Promise<string> {
       if (!hasGeminiApiKey()) {
         return res.status(400).json({
           success: false,
-          error: 'خدمة توليد الفيديو غير مهيأة: مفتاح GEMINI_API_KEY غير متوفر في متغيرات بيئة الخادم. يرجى إضافة مفتاح GEMINI_API_KEY من خلال واجهة إدارة الأسرار لتفعيل الخدمة. لم يتم خصم أي نقاط من رصيدك.',
+          error: 'خدمة توليد الفيديو غير مهيأة: مفتاح GEMINI_API_KEY غير متوفر في متغيرات بيئة الخادم. لم يتم خصم أي نقاط من رصيدك.',
         });
       }
 
@@ -1384,36 +1039,24 @@ async function generateTextWithFallback(contents: string): Promise<string> {
       const mime = videoPart.mime_type || 'video/mp4';
       const videoUrl = `data:${mime};base64,${videoPart.data}`;
 
-      // Deduct credits strictly AFTER successful generation
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `توليد فيديو إعلاني: ${product.slice(0, 25)}`,
-        createdAt: new Date().toISOString(),
-      });
+      const newCredits = await deductCreditsFirestore(uid, cost, `توليد فيديو إعلاني: ${product.slice(0, 25)}`);
 
-      const newProject: DBProject = {
-        id: 'prj_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
+      const newProject = await saveProjectFirestore(uid, {
         title: `إعلان: ${product.slice(0, 30)}...`,
         type: 'video',
         platform: aspectRatio || '9:16',
         status: 'completed',
         progress: 100,
         content: { videoUrl, details: { product, aspectRatio, duration, style, voice, language } },
-        createdAt: new Date().toISOString(),
-      };
-
-      db.projects.unshift(newProject);
-      saveDBAtomic(db);
+      });
 
       res.json({
         success: true,
         project: newProject,
-        user: toSafeUser(currentUser, req.token),
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
       });
     } catch (error: any) {
       console.error('Error in video generation:', error?.message || error);
@@ -1424,21 +1067,12 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
-  // AI Story & Idea Expansion Endpoint
-  app.post('/api/ai/expand-story-idea', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/expand-story-idea', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 1;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'المستخدم غير موجود' });
-
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({ success: false, error: 'رصيد النقاط غير كافٍ لتطوير الفكرة (التكلفة: 1 نقطة)' });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { idea, category, style } = req.body;
@@ -1476,26 +1110,20 @@ async function generateTextWithFallback(contents: string): Promise<string> {
       const expansion = {
         title,
         summary: generatedScript,
-        scenes: generatedScript.split('\n').filter(line => line.includes('مشهد') || line.includes('Scene')),
+        scenes: generatedScript.split('\n').filter((line: string) => line.includes('مشهد') || line.includes('Scene')),
         narration: generatedScript,
         masterPrompt: `A high-quality cinematic narrative video based on: ${idea}. Visual style: ${style || 'cinematic'}. High resolution, dynamic lighting, masterpiece.`,
       };
 
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `تطوير فكرة فيديو إلى قصة: ${idea.slice(0, 20)}`,
-        createdAt: new Date().toISOString(),
-      });
-      saveDBAtomic(db);
+      const newCredits = await deductCreditsFirestore(uid, cost, `تطوير فكرة فيديو إلى قصة: ${idea.slice(0, 20)}`);
 
       res.json({
         success: true,
         expansion,
-        user: toSafeUser(currentUser, req.token),
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
       });
     } catch (err: any) {
       console.error('Error in expanding story idea:', err?.message || err);
@@ -1506,24 +1134,12 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
-  // AI Creative Video Generator Endpoint
-  app.post('/api/ai/creative-video-generate', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/creative-video-generate', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 10;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'المستخدم غير موجود' });
-
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({
-        success: false,
-        error: `رصيد النقاط المتاح غير كافٍ لتشغيل العملية. التكلفة: ${cost} نقاط. رصيدك الحالي: ${currentUser.credits}`,
-      });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { prompt, category, image, aspectRatio, duration, style, voice, language, backgroundMusic, expandedScript } = req.body;
@@ -1532,7 +1148,6 @@ async function generateTextWithFallback(contents: string): Promise<string> {
         return res.status(400).json({ success: false, error: 'وصف القصة أو الفيديو مطلوب ويجب أن يكون بين حرفين و3000 حرف' });
       }
 
-      // Safely process reference image (supports Base64 and public URLs with SSRF protection)
       const imageResult = await resolveAndProcessImageInput(image);
       if (!imageResult.valid) {
         return res.status(400).json({ success: false, error: imageResult.error });
@@ -1591,36 +1206,24 @@ High detail, fluid movement, professional lighting and composition.`;
       const mime = videoPart.mime_type || 'video/mp4';
       const videoUrl = `data:${mime};base64,${videoPart.data}`;
 
-      // Deduct credits strictly AFTER successful generation
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `توليد فيديو إبداعي: ${category || 'قصة'} - ${prompt.slice(0, 20)}`,
-        createdAt: new Date().toISOString(),
-      });
+      const newCredits = await deductCreditsFirestore(uid, cost, `توليد فيديو إبداعي: ${category || 'قصة'} - ${prompt.slice(0, 20)}`);
 
-      const newProject: DBProject = {
-        id: 'prj_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
+      const newProject = await saveProjectFirestore(uid, {
         title: expandedScript?.title || `قصة: ${prompt.slice(0, 25)}...`,
         type: 'creative_video',
         platform: aspectRatio || '16:9',
         status: 'completed',
         progress: 100,
         content: { videoUrl, details: { prompt, category, style, aspectRatio, duration, voice, language, backgroundMusic, expandedScript } },
-        createdAt: new Date().toISOString(),
-      };
-
-      db.projects.unshift(newProject);
-      saveDBAtomic(db);
+      });
 
       res.json({
         success: true,
         project: newProject,
-        user: toSafeUser(currentUser, req.token),
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
       });
     } catch (error: any) {
       console.error('Error in creative video generation:', error?.message || error);
@@ -1631,21 +1234,12 @@ High detail, fluid movement, professional lighting and composition.`;
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
-  // Image Studio Generation
-  app.post('/api/ai/image-generate', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/image-generate', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 2;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'المستخدم غير موجود' });
-
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({ success: false, error: `رصيد النقاط المتاح غير كافٍ. تتطلب عملية توليد الصورة ${cost} نقطة.` });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { prompt, aspectRatio, stylePreset } = req.body;
@@ -1656,7 +1250,7 @@ High detail, fluid movement, professional lighting and composition.`;
       if (!hasGeminiApiKey()) {
         return res.status(400).json({
           success: false,
-          error: 'خدمة توليد الصور غير مهيأة: مفتاح GEMINI_API_KEY غير متوفر في بيئة الخادم. يرجى إضافة مفتاح GEMINI_API_KEY من خلال واجهة إدارة الأسرار. لم يتم خصم أي نقاط من رصيدك.',
+          error: 'خدمة توليد الصور غير مهيأة: مفتاح GEMINI_API_KEY غير متوفر في بيئة الخادم. لم يتم خصم أي نقاط من رصيدك.',
         });
       }
 
@@ -1677,36 +1271,25 @@ High detail, fluid movement, professional lighting and composition.`;
         throw new Error('لم يتم استلام بيانات الصورة المولدة');
       }
 
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `توليد صورة إعلانية: ${prompt.slice(0, 25)}`,
-        createdAt: new Date().toISOString(),
-      });
+      const newCredits = await deductCreditsFirestore(uid, cost, `توليد صورة إعلانية: ${prompt.slice(0, 25)}`);
 
-      const project: DBProject = {
-        id: 'prj_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
+      const project = await saveProjectFirestore(uid, {
         title: `صورة: ${prompt.slice(0, 25)}`,
         type: 'image',
         platform: aspectRatio || '1:1',
         status: 'completed',
         progress: 100,
         content: { imageUrl, prompt, stylePreset, aspectRatio },
-        createdAt: new Date().toISOString(),
-      };
-
-      db.projects.unshift(project);
-      saveDBAtomic(db);
+      });
 
       res.json({
         success: true,
         project,
         imageUrl,
-        user: toSafeUser(currentUser, req.token),
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
       });
     } catch (err: any) {
       console.error('Error in image generation:', err?.message || err);
@@ -1717,21 +1300,12 @@ High detail, fluid movement, professional lighting and composition.`;
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
-  // AI Copywriting Endpoint
-  app.post('/api/ai/copywrite', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/copywrite', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 1;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'غير مسجل الدخول' });
-
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({ success: false, error: 'رصيد النقاط المتاح غير كافٍ' });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { product, targetAudience, framework, platform, tone } = req.body;
@@ -1742,7 +1316,7 @@ High detail, fluid movement, professional lighting and composition.`;
       if (!hasGeminiApiKey()) {
         return res.status(400).json({
           success: false,
-          error: 'خدمة كتابة الإعلانات غير مفعّلة: مفتاح GEMINI_API_KEY غير متوفر في الخادم. يرجى إضافة مفتاح GEMINI_API_KEY من خلال واجهة إدارة الأسرار. لم يتم خصم أي نقاط.',
+          error: 'خدمة كتابة الإعلانات غير مفعّلة: مفتاح GEMINI_API_KEY غير متوفر في الخادم. لم يتم خصم أي نقاط.',
         });
       }
 
@@ -1764,32 +1338,26 @@ High detail, fluid movement, professional lighting and composition.`;
         throw new Error('لم يتم استلام نص من نموذج الذكاء الاصطناعي');
       }
 
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `كتابة نص إعلاني: ${product.slice(0, 20)}`,
-        createdAt: new Date().toISOString(),
-      });
+      const newCredits = await deductCreditsFirestore(uid, cost, `كتابة نص إعلاني: ${product.slice(0, 20)}`);
 
-      const project: DBProject = {
-        id: 'prj_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
+      const project = await saveProjectFirestore(uid, {
         title: `سيناريو: ${product.slice(0, 25)}`,
         type: 'copy',
         platform: platform || 'TikTok',
         status: 'completed',
         progress: 100,
         content: { generatedText, details: { product, targetAudience, framework, platform, tone } },
-        createdAt: new Date().toISOString(),
-      };
+      });
 
-      db.projects.unshift(project);
-      saveDBAtomic(db);
-
-      res.json({ success: true, project, user: toSafeUser(currentUser, req.token), text: generatedText });
+      res.json({
+        success: true,
+        project,
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
+        text: generatedText,
+      });
     } catch (err: any) {
       console.error('Error in copywriting:', err?.message || err);
       const parsedErr = parseGeminiError(err);
@@ -1799,21 +1367,12 @@ High detail, fluid movement, professional lighting and composition.`;
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
-  // AI Marketing Assistant Endpoint
-  app.post('/api/ai/marketing-assistant', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/marketing-assistant', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 2;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'غير مسجل الدخول' });
-
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({ success: false, error: 'رصيد النقاط غير كافٍ' });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { product, goal, budget, country } = req.body;
@@ -1824,7 +1383,7 @@ High detail, fluid movement, professional lighting and composition.`;
       if (!hasGeminiApiKey()) {
         return res.status(400).json({
           success: false,
-          error: 'خدمة المساعد التسويقي غير مفعّلة: مفتاح GEMINI_API_KEY غير متوفر في الخادم. يرجى إضافة مفتاح GEMINI_API_KEY من خلال واجهة إدارة الأسرار. لم يتم خصم أي نقاط.',
+          error: 'خدمة المساعد التسويقي غير مفعّلة: مفتاح GEMINI_API_KEY غير متوفر في الخادم. لم يتم خصم أي نقاط.',
         });
       }
 
@@ -1845,31 +1404,25 @@ High detail, fluid movement, professional lighting and composition.`;
         throw new Error('لم يتم توليد خطة تسويقية');
       }
 
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `خطة استراتيجية تسويقية: ${product.slice(0, 20)}`,
-        createdAt: new Date().toISOString(),
-      });
+      const newCredits = await deductCreditsFirestore(uid, cost, `خطة استراتيجية تسويقية: ${product.slice(0, 20)}`);
 
-      const project: DBProject = {
-        id: 'prj_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
+      const project = await saveProjectFirestore(uid, {
         title: `خطة تسويق: ${product.slice(0, 25)}`,
         type: 'marketing_plan',
         status: 'completed',
         progress: 100,
         content: { planText, details: { product, goal, budget, country } },
-        createdAt: new Date().toISOString(),
-      };
+      });
 
-      db.projects.unshift(project);
-      saveDBAtomic(db);
-
-      res.json({ success: true, project, user: toSafeUser(currentUser, req.token), planText });
+      res.json({
+        success: true,
+        project,
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
+        planText,
+      });
     } catch (err: any) {
       console.error('Error in marketing assistant:', err?.message || err);
       const parsedErr = parseGeminiError(err);
@@ -1879,21 +1432,12 @@ High detail, fluid movement, professional lighting and composition.`;
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
-  // AI Translation Endpoint
-  app.post('/api/ai/translate', optionalAuthenticateToken, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/ai/translate', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const cost = 1;
-    const db = loadDB();
-    const currentUser = db.users.find(u => u.id === req.user!.id);
-    if (!currentUser) return res.status(401).json({ success: false, error: 'غير مسجل الدخول' });
-
-    if (!reserveUserCredits(currentUser.id, cost, currentUser.credits)) {
-      return res.status(400).json({ success: false, error: 'رصيد النقاط غير كافٍ' });
-    }
+    const uid = req.user!.uid;
 
     try {
       const { text, targetLanguage, sourceLanguage } = req.body;
@@ -1904,7 +1448,7 @@ High detail, fluid movement, professional lighting and composition.`;
       if (!hasGeminiApiKey()) {
         return res.status(400).json({
           success: false,
-          error: 'خدمة الترجمة غير مفعّلة: مفتاح GEMINI_API_KEY غير متوفر في الخادم. يرجى إضافة مفتاح GEMINI_API_KEY من خلال واجهة إدارة الأسرار. لم يتم خصم أي نقاط.',
+          error: 'خدمة الترجمة غير مفعّلة: مفتاح GEMINI_API_KEY غير متوفر في الخادم. لم يتم خصم أي نقاط.',
         });
       }
 
@@ -1922,31 +1466,25 @@ High detail, fluid movement, professional lighting and composition.`;
         throw new Error('لم تتم عملية الترجمة');
       }
 
-      currentUser.credits -= cost;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
-        type: 'credit_deduction',
-        amount: -cost,
-        description: `ترجمة إعلان إلى ${targetLanguage || 'إنجليزية'}`,
-        createdAt: new Date().toISOString(),
-      });
+      const newCredits = await deductCreditsFirestore(uid, cost, `ترجمة إعلان إلى ${targetLanguage || 'إنجليزية'}`);
 
-      const project: DBProject = {
-        id: 'prj_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: currentUser.id,
+      const project = await saveProjectFirestore(uid, {
         title: `ترجمة إلى ${targetLanguage}: ${text.slice(0, 20)}`,
         type: 'translation',
         status: 'completed',
         progress: 100,
         content: { translatedText, originalText: text, targetLanguage },
-        createdAt: new Date().toISOString(),
-      };
+      });
 
-      db.projects.unshift(project);
-      saveDBAtomic(db);
-
-      res.json({ success: true, project, user: toSafeUser(currentUser, req.token), translatedText });
+      res.json({
+        success: true,
+        project,
+        user: {
+          ...req.user!,
+          credits: newCredits,
+        },
+        translatedText,
+      });
     } catch (err: any) {
       console.error('Error in translation:', err?.message || err);
       const parsedErr = parseGeminiError(err);
@@ -1956,17 +1494,14 @@ High detail, fluid movement, professional lighting and composition.`;
         error: `${parsedErr.message} (لم يتم خصم أي نقاط من رصيدك)`,
         details: parsedErr.originalMessage,
       });
-    } finally {
-      releaseUserCredits(currentUser.id, cost);
     }
   });
 
   // ==========================================
-  // COUPONS, PAYMENTS & WEBHOOKS
+  // COUPONS & PAYMENTS (FIRESTORE BACKED)
   // ==========================================
 
-  // Redeem Coupon Code
-  app.post('/api/coupons/redeem', authenticateToken, (req: AuthenticatedRequest, res) => {
+  app.post('/api/coupons/redeem', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { code } = req.body;
       if (!isValidString(code, 1, 30)) {
@@ -1974,127 +1509,82 @@ High detail, fluid movement, professional lighting and composition.`;
       }
 
       const cleanCode = code.trim().toUpperCase();
-      const db = loadDB();
-      const coupon = db.coupons.find(c => c.code.toUpperCase() === cleanCode);
+      const couponRef = adminDb.collection('coupons').doc(cleanCode);
+      const couponSnap = await couponRef.get();
 
-      if (!coupon) {
-        return res.status(400).json({ success: false, error: 'كود الكوبون غير صحيح أو غير موجود' });
+      let couponData: any;
+      if (!couponSnap.exists) {
+        const defaultCoupons: Record<string, number> = {
+          MOUULIN2026: 100,
+          WELCOME100: 100,
+          PRO2026: 250,
+          ARCADS: 50,
+          VIP500: 500,
+        };
+        const creds = defaultCoupons[cleanCode];
+        if (!creds) {
+          return res.status(400).json({ success: false, error: 'كود الكوبون غير صحيح أو غير موجود' });
+        }
+        couponData = {
+          code: cleanCode,
+          credits: creds,
+          maxUses: 1000,
+          usedCount: 0,
+          usedBy: [],
+        };
+        await couponRef.set(couponData);
+      } else {
+        couponData = couponSnap.data();
       }
 
-      if (new Date(coupon.expiresAt) < new Date()) {
-        return res.status(400).json({ success: false, error: 'كود الكوبون انتهت صلاحيته' });
-      }
-
-      if (coupon.usedCount >= coupon.maxUses) {
-        return res.status(400).json({ success: false, error: 'تم استنفاد الحد الأقصى لاستخدام هذا الكوبون' });
-      }
-
-      if (!coupon.usedBy) coupon.usedBy = [];
-      if (coupon.usedBy.includes(req.user!.id)) {
+      if (couponData.usedBy && couponData.usedBy.includes(req.user!.uid)) {
         return res.status(400).json({ success: false, error: 'لقد قمت باستخدام هذا الكوبون مسبقاً' });
       }
 
-      const user = db.users.find(u => u.id === req.user!.id);
-      if (!user) return res.status(401).json({ success: false, error: 'المستخدم غير موجود' });
+      const userRef = adminDb.collection('users').doc(req.user!.uid);
+      await adminDb.runTransaction(async (transaction: Transaction) => {
+        const uSnap = await transaction.get(userRef);
+        const currentCredits = uSnap.exists ? uSnap.data()?.credits ?? 50 : 50;
+        const newCredits = currentCredits + couponData.credits;
 
-      user.credits += coupon.credits;
-      coupon.usedCount += 1;
-      coupon.usedBy.push(user.id);
+        transaction.update(userRef, {
+          credits: newCredits,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
 
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: user.id,
-        type: 'coupon',
-        amount: coupon.credits,
-        description: `تفعيل كوبون الخصم: ${cleanCode}`,
-        createdAt: new Date().toISOString(),
+        transaction.update(couponRef, {
+          usedCount: (couponData.usedCount || 0) + 1,
+          usedBy: FieldValue.arrayUnion(req.user!.uid),
+        });
+
+        const txRef = adminDb.collection('credit_transactions').doc();
+        transaction.set(txRef, {
+          id: txRef.id,
+          userId: req.user!.uid,
+          type: 'coupon',
+          amount: couponData.credits,
+          description: `تفعيل كوبون الخصم: ${cleanCode}`,
+          createdAt: FieldValue.serverTimestamp(),
+        });
       });
 
-      saveDBAtomic(db);
-
+      const updatedUserSnap = await userRef.get();
       res.json({
         success: true,
-        user: toSafeUser(user, req.token),
-        addedCredits: coupon.credits,
-        message: `تم تفعيل الكوبون بنجاح إضافة ${coupon.credits} نقطة إلى رصيدك!`,
+        user: {
+          ...req.user!,
+          credits: updatedUserSnap.data()?.credits ?? req.user!.credits + couponData.credits,
+        },
+        addedCredits: couponData.credits,
+        message: `تم تفعيل الكوبون بنجاح إضافة ${couponData.credits} نقطة إلى رصيدك!`,
       });
     } catch (err) {
       handleServerError(res, err, 'Redeem Coupon Exception');
     }
   });
 
-  // Secure Webhooks Payment Gateway Route
-  app.post('/api/webhooks/payment', (req, res) => {
-    try {
-      const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-
-      if (!webhookSecret) {
-        return res.status(503).json({
-          success: false,
-          error: 'بوابة استقبال المدفوعات عبر الويب هوك غير مفعّلة حالياً (PAYMENT_WEBHOOK_SECRET غير محدد بالخادم).',
-        });
-      }
-
-      const signature = req.headers['x-webhook-signature'];
-      if (!signature || typeof signature !== 'string') {
-        return res.status(401).json({ success: false, error: 'توقيع الويب هوك مفقود' });
-      }
-
-      const computedHash = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(JSON.stringify(req.body))
-        .digest('hex');
-
-      if (computedHash !== signature) {
-        return res.status(401).json({ success: false, error: 'توقيع الويب هوك غير صحيح أو تم التلاعب بالبيانات' });
-      }
-
-      const { paymentId, userId, planTier, amount, currency } = req.body;
-      if (!isValidString(paymentId, 1, 100) || !isValidString(userId, 1, 100) || !isValidString(planTier, 1, 50) || !isValidPositiveNumber(amount, 0.01, 100000) || !isValidString(currency, 1, 10)) {
-        return res.status(400).json({ success: false, error: 'بيانات العملية غير مكتملة أو غير صالحة' });
-      }
-
-      const db = loadDB();
-      if (db.processedPayments.includes(paymentId)) {
-        return res.json({ success: true, message: 'تمت معالجة هذه العملية مسبقاً (إدماج متكافئ)' });
-      }
-
-      const user = db.users.find(u => u.id === userId);
-      if (!user) {
-        return res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
-      }
-
-      const tierCreditsMap: Record<string, number> = {
-        pro: 500,
-        enterprise: 2000,
-      };
-      const added = tierCreditsMap[planTier];
-      if (!added) {
-        return res.status(400).json({ success: false, error: 'باقة الاشتراك المحددة غير صالحة' });
-      }
-
-      user.credits += added;
-      user.tier = planTier as 'pro' | 'enterprise';
-
-      db.processedPayments.push(paymentId);
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: user.id,
-        type: 'subscription',
-        amount: added,
-        description: `تأكيد الدفع عبر بوابة الفوترة (${paymentId}) - ترقية لـ ${planTier}`,
-        createdAt: new Date().toISOString(),
-      });
-
-      saveDBAtomic(db);
-      res.json({ success: true, message: 'تم تأكيد عملية الدفع وإضافة الرصيد بنجاح' });
-    } catch (err) {
-      handleServerError(res, err, 'Payment Webhook Exception');
-    }
-  });
-
-  // Client Subscription Request Route
-  app.post('/api/user/subscription', authenticateToken, (req: AuthenticatedRequest, res) => {
+  // Client Subscription Request Route (Firestore Backed)
+  app.post('/api/user/subscription', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { tier, paymentProofToken } = req.body;
       const paymentGatewaySecret = process.env.PAYMENT_GATEWAY_SECRET;
@@ -2106,14 +1596,6 @@ High detail, fluid movement, professional lighting and composition.`;
         });
       }
 
-      const db = loadDB();
-
-      // Enforce Single-Use of Payment Proof Token
-      if (db.processedPayments.includes(paymentProofToken)) {
-        return res.status(400).json({ success: false, error: 'تم استخدام إثبات الدفع هذا مسبقاً' });
-      }
-
-      // Verify payment proof token HMAC signature
       try {
         const [payloadBase64, tokenSignature] = paymentProofToken.split('.');
         const expectedSig = crypto.createHmac('sha256', paymentGatewaySecret).update(payloadBase64).digest('hex');
@@ -2124,9 +1606,6 @@ High detail, fluid movement, professional lighting and composition.`;
         return res.status(401).json({ success: false, error: 'صيغة رمز إثبات الدفع غير صحيحة' });
       }
 
-      const user = db.users.find(u => u.id === req.user!.id);
-      if (!user) return res.status(404).json({ success: false, error: 'المستخدم غير موجود' });
-
       const tierCreditsMap: Record<string, number> = {
         pro: 500,
         enterprise: 2000,
@@ -2136,21 +1615,38 @@ High detail, fluid movement, professional lighting and composition.`;
         return res.status(400).json({ success: false, error: 'نوع الباقة غير صالح' });
       }
 
-      user.tier = tier as 'pro' | 'enterprise';
-      user.credits += addedCredits;
+      const userRef = adminDb.collection('users').doc(req.user!.uid);
+      await adminDb.runTransaction(async (transaction: Transaction) => {
+        const uSnap = await transaction.get(userRef);
+        const currentCredits = uSnap.exists ? uSnap.data()?.credits ?? 50 : 50;
+        const newCredits = currentCredits + addedCredits;
 
-      db.processedPayments.push(paymentProofToken);
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: user.id,
-        type: 'subscription',
-        amount: addedCredits,
-        description: `ترقية موثقة للباقة ${tier}`,
-        createdAt: new Date().toISOString(),
+        transaction.update(userRef, {
+          tier,
+          credits: newCredits,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        const txRef = adminDb.collection('credit_transactions').doc();
+        transaction.set(txRef, {
+          id: txRef.id,
+          userId: req.user!.uid,
+          type: 'subscription',
+          amount: addedCredits,
+          description: `ترقية موثقة للباقة ${tier}`,
+          createdAt: FieldValue.serverTimestamp(),
+        });
       });
 
-      saveDBAtomic(db);
-      res.json({ success: true, user: toSafeUser(user, req.token) });
+      const updatedSnap = await userRef.get();
+      res.json({
+        success: true,
+        user: {
+          ...req.user!,
+          tier,
+          credits: updatedSnap.data()?.credits,
+        },
+      });
     } catch (err) {
       handleServerError(res, err, 'Subscription Upgrade Exception');
     }
@@ -2160,16 +1656,26 @@ High detail, fluid movement, professional lighting and composition.`;
   // ADMIN DASHBOARD & MANAGEMENT (STRICT ADMIN AUTH)
   // ==========================================
 
-  app.get('/api/admin/stats', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res) => {
+  app.get('/api/admin/stats', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const db = loadDB();
-      const totalUsers = db.users.length;
-      const totalProjects = db.projects.length;
-      const totalTransactions = db.transactions.length;
-      const totalCreditsUsed = db.transactions
-        .filter(t => t.type === 'credit_deduction')
-        .reduce((acc, t) => acc + Math.abs(t.amount), 0);
-      const totalRevenue = db.users.filter(u => u.tier !== 'free').length * 49;
+      const usersSnap = await adminDb.collection('users').get();
+      const projectsSnap = await adminDb.collection('projects').get();
+      const txSnap = await adminDb.collection('credit_transactions').get();
+
+      const totalUsers = usersSnap.size;
+      const totalProjects = projectsSnap.size;
+      const totalTransactions = txSnap.size;
+
+      let totalCreditsUsed = 0;
+      txSnap.docs.forEach((d: QueryDocumentSnapshot) => {
+        const data = d.data();
+        if (data.type === 'credit_deduction') {
+          totalCreditsUsed += Math.abs(data.amount || 0);
+        }
+      });
+
+      const proUsersCount = usersSnap.docs.filter((d: QueryDocumentSnapshot) => d.data().tier && d.data().tier !== 'free').length;
+      const totalRevenue = proUsersCount * 49;
 
       res.json({
         success: true,
@@ -2189,53 +1695,57 @@ High detail, fluid movement, professional lighting and composition.`;
     }
   });
 
-  app.get('/api/admin/users', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res) => {
+  app.get('/api/admin/users', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
     try {
-      const db = loadDB();
-      const safeUsers = db.users.map(u => toSafeUser(u));
+      const usersSnap = await adminDb.collection('users').get();
+      const users = usersSnap.docs.map((d: QueryDocumentSnapshot) => d.data());
+
+      const txSnap = await adminDb.collection('credit_transactions').limit(100).get();
+      const transactions = txSnap.docs.map((d: QueryDocumentSnapshot) => d.data());
+
       res.json({
         success: true,
-        users: safeUsers,
-        transactions: db.transactions.slice(0, 100),
-        auditLogs: db.auditLogs.slice(0, 50),
+        users,
+        transactions,
       });
     } catch (err) {
       handleServerError(res, err, 'Admin Users Exception');
     }
   });
 
-  // Grant Credits Admin Route (Validates inputs and prevents negative amounts)
-  app.post('/api/admin/grant-credits', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res) => {
+  app.post('/api/admin/grant-credits', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
     try {
       const { targetUserId, amount, reason } = req.body;
       if (!isValidString(targetUserId, 1, 100) || !isValidPositiveNumber(amount, 1, 100000)) {
         return res.status(400).json({ success: false, error: 'بيانات إضافة الرصيد غير صالحة. يجب أن تكون الكمية رقماً موجباً' });
       }
 
-      const db = loadDB();
-      const user = db.users.find(u => u.id === targetUserId);
-      if (!user) return res.status(404).json({ success: false, error: 'المستخدم المستهدف غير موجود' });
+      const userRef = adminDb.collection('users').doc(targetUserId);
+      const userSnap = await userRef.get();
+      if (!userSnap.exists) {
+        return res.status(404).json({ success: false, error: 'المستخدم المستهدف غير موجود' });
+      }
 
-      user.credits += amount;
-      db.transactions.push({
-        id: 'tx_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: user.id,
-        type: 'credit_addition',
-        amount,
-        description: `إضافة رصيد إدارية: ${reason && typeof reason === 'string' ? reason.slice(0, 100) : 'منح بواسطة المدير'}`,
-        createdAt: new Date().toISOString(),
+      await adminDb.runTransaction(async (transaction: Transaction) => {
+        const uSnap = await transaction.get(userRef);
+        const current = uSnap.data()?.credits ?? 0;
+        transaction.update(userRef, {
+          credits: current + amount,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        const txRef = adminDb.collection('credit_transactions').doc();
+        transaction.set(txRef, {
+          id: txRef.id,
+          userId: targetUserId,
+          type: 'credit_addition',
+          amount,
+          description: `إضافة رصيد إدارية: ${reason && typeof reason === 'string' ? reason.slice(0, 100) : 'منح بواسطة المدير'}`,
+          createdAt: FieldValue.serverTimestamp(),
+        });
       });
 
-      db.auditLogs.unshift({
-        id: 'log_' + Date.now() + '_' + crypto.randomBytes(3).toString('hex'),
-        userId: req.user!.id,
-        action: 'GRANT_CREDITS',
-        details: { targetUserId, amount, reason: reason || 'N/A' },
-        createdAt: new Date().toISOString(),
-      });
-
-      saveDBAtomic(db);
-      res.json({ success: true, user: toSafeUser(user), message: `تم إضافة ${amount} نقطة للمستخدم بنجاح` });
+      const updatedSnap = await userRef.get();
+      res.json({ success: true, user: updatedSnap.data(), message: `تم إضافة ${amount} نقطة للمستخدم بنجاح` });
     } catch (err) {
       handleServerError(res, err, 'Admin Grant Credits Exception');
     }

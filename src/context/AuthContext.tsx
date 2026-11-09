@@ -10,6 +10,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   isConfigured: boolean;
+  getIdToken: () => Promise<string | null>;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (credentials: LoginCredentials) => Promise<void>;
   registerWithEmail: (credentials: RegisterCredentials) => Promise<void>;
@@ -27,19 +28,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Default fallback demo user for offline/pre-configured state
-  const demoAdminUser: AuthUser = {
-    uid: 'demo_admin_uid_123',
-    email: 'ahmed@moulin.ai',
-    displayName: 'أحمد الإداري (MOLAN AI)',
-    photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    emailVerified: true,
-    providerId: 'password',
-    role: 'admin',
-    credits: 500,
-    tier: 'pro',
-  };
-
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
 
@@ -49,40 +37,57 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (isFirebaseConfigured && auth) {
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
         if (firebaseUser) {
-          let role: 'admin' | 'user' = 'user';
-          let credits = 50;
+          try {
+            const token = await firebaseUser.getIdToken();
+            let role: 'admin' | 'user' = 'user';
+            let credits = 50;
+            let tier: 'free' | 'pro' | 'enterprise' = 'free';
 
-          // Fetch or create profile document in Firestore if database is ready
-          if (db) {
-            try {
-              const userRef = doc(db, 'users', firebaseUser.uid);
-              const snap = await getDoc(userRef);
-              if (snap.exists()) {
-                const data = snap.data();
-                role = data.role || 'user';
-                credits = data.credits ?? 50;
-              } else {
-                await setDoc(userRef, {
-                  uid: firebaseUser.uid,
-                  fullName: firebaseUser.displayName || 'مستخدم MOLAN AI',
-                  email: firebaseUser.email,
-                  photoURL: firebaseUser.photoURL,
-                  provider: firebaseUser.providerData[0]?.providerId || 'google.com',
-                  emailVerified: firebaseUser.emailVerified,
-                  role: 'user',
-                  credits: 50,
-                  accountStatus: 'active',
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-                });
+            const userEmail = (firebaseUser.email || '').toLowerCase();
+            const isAdmin = userEmail === 'ahmed@moulin.ai' || userEmail === 'bdwe.swerke.bdwe@gmail.com';
+            if (isAdmin) role = 'admin';
+
+            // Fetch or create profile document in Firestore ywsf-al-zaka
+            if (db) {
+              try {
+                const userRef = doc(db, 'users', firebaseUser.uid);
+                const snap = await getDoc(userRef);
+                if (snap.exists()) {
+                  const data = snap.data();
+                  role = data.role || (isAdmin ? 'admin' : 'user');
+                  credits = data.credits ?? 50;
+                  tier = data.tier || 'free';
+                } else {
+                  await setDoc(userRef, {
+                    uid: firebaseUser.uid,
+                    fullName: firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : 'مستخدم MOLAN AI'),
+                    email: firebaseUser.email,
+                    photoURL: firebaseUser.photoURL,
+                    provider: firebaseUser.providerData[0]?.providerId || 'google.com',
+                    emailVerified: firebaseUser.emailVerified,
+                    role: isAdmin ? 'admin' : 'user',
+                    credits: 50,
+                    tier: 'free',
+                    accountStatus: 'active',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                  });
+                }
+              } catch (e) {
+                console.error('Error fetching/creating user document in Firestore:', e);
               }
-            } catch (e) {
-              console.error('Error fetching/creating user document in Firestore:', e);
             }
-          }
 
-          const mapped = AuthService.mapFirebaseUser(firebaseUser, { role, credits });
-          setUser(mapped);
+            const mapped = AuthService.mapFirebaseUser(firebaseUser, { role, credits });
+            setUser({
+              ...mapped,
+              tier,
+              token,
+            });
+          } catch (tokenErr) {
+            console.error('Error fetching Firebase ID token:', tokenErr);
+            setUser(null);
+          }
         } else {
           setUser(null);
         }
@@ -98,24 +103,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
+  const getIdToken = async (): Promise<string | null> => {
+    if (auth && auth.currentUser) {
+      try {
+        return await auth.currentUser.getIdToken();
+      } catch (e) {
+        console.error('Error getting Firebase ID token:', e);
+        return null;
+      }
+    }
+    return null;
+  };
+
   const clearError = () => setError(null);
 
   const loginWithGoogle = async () => {
     setLoading(true);
     setError(null);
     try {
-      if (!isFirebaseConfigured) {
-        // Fallback for code preview before Firebase env vars are set
-        setUser({
-          ...demoAdminUser,
-          providerId: 'google.com',
-          displayName: 'مستخدم Google (تجريبي)',
-        });
-        setLoading(false);
-        return;
+      if (!isFirebaseConfigured || !auth) {
+        throw { code: 'auth/not-configured' };
       }
       const authUser = await AuthService.loginWithGoogle();
-      setUser(authUser);
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      setUser({ ...authUser, token });
     } catch (err: any) {
       const formatted = AuthService.formatAuthError(err);
       setError(formatted.messageAr);
@@ -129,17 +140,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
-      if (!isFirebaseConfigured) {
-        setUser({
-          ...demoAdminUser,
-          email: credentials.email,
-          displayName: credentials.email.split('@')[0],
-        });
-        setLoading(false);
-        return;
+      if (!isFirebaseConfigured || !auth) {
+        throw { code: 'auth/not-configured' };
       }
       const authUser = await AuthService.loginWithEmail(credentials);
-      setUser(authUser);
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      setUser({ ...authUser, token });
     } catch (err: any) {
       const formatted = AuthService.formatAuthError(err);
       setError(formatted.messageAr);
@@ -153,22 +159,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
-      if (!isFirebaseConfigured) {
-        setUser({
-          uid: 'new_user_' + Date.now(),
-          email: credentials.email,
-          displayName: credentials.fullName,
-          photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-          emailVerified: false,
-          providerId: 'password',
-          role: 'user',
-          credits: 50,
-        });
-        setLoading(false);
-        return;
+      if (!isFirebaseConfigured || !auth) {
+        throw { code: 'auth/not-configured' };
       }
       const authUser = await AuthService.registerWithEmail(credentials);
-      setUser(authUser);
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      setUser({ ...authUser, token });
     } catch (err: any) {
       const formatted = AuthService.formatAuthError(err);
       setError(formatted.messageAr);
@@ -182,11 +178,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
-      if (!isFirebaseConfigured) {
-        // Fallback simulation
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        setLoading(false);
-        return;
+      if (!isFirebaseConfigured || !auth) {
+        throw { code: 'auth/not-configured' };
       }
       await AuthService.sendPasswordReset(email);
     } catch (err: any) {
@@ -202,9 +195,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
-      if (isFirebaseConfigured) {
-        await AuthService.sendEmailVerificationEmail();
+      if (!isFirebaseConfigured || !auth) {
+        throw { code: 'auth/not-configured' };
       }
+      await AuthService.sendEmailVerificationEmail();
     } catch (err: any) {
       const formatted = AuthService.formatAuthError(err);
       setError(formatted.messageAr);
@@ -217,7 +211,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     setLoading(true);
     try {
-      if (isFirebaseConfigured) {
+      if (isFirebaseConfigured && auth) {
         await AuthService.logout();
       }
       setUser(null);
@@ -235,6 +229,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading,
         error,
         isConfigured: isFirebaseConfigured,
+        getIdToken,
         loginWithGoogle,
         loginWithEmail,
         registerWithEmail,

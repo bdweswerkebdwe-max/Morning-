@@ -10,6 +10,7 @@ export interface AuthUser {
   tier?: 'free' | 'pro' | 'enterprise';
   createdAt?: string;
   accountStatus?: 'active' | 'suspended';
+  token?: string;
 }
 
 export interface LoginCredentials {
