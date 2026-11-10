@@ -9,6 +9,7 @@ import { GoogleGenAI } from '@google/genai';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue, Transaction, QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 
 dotenv.config();
 
@@ -564,6 +565,37 @@ async function saveProjectFirestore(userId: string, projectData: { title: string
   return prj;
 }
 
+// Upload Media to Firebase Storage Helper
+async function uploadMediaToFirebaseStorage(base64Data: string, mimeType: string, folder: string, filename?: string): Promise<string> {
+  if (!base64Data) return '';
+  try {
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET || 'ywsf-al-zaka.firebasestorage.app';
+    const bucket = getStorage().bucket(bucketName);
+    const name = filename || `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    const ext = mimeType.includes('png') ? 'png' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('webp') ? 'webp' : 'jpg';
+    const filePath = `${folder}/${name}.${ext}`;
+    const file = bucket.file(filePath);
+
+    const buffer = Buffer.from(base64Data, 'base64');
+    await file.save(buffer, {
+      metadata: {
+        contentType: mimeType,
+      },
+      resumable: false,
+    });
+
+    try {
+      await file.makePublic();
+    } catch {}
+
+    const encodedPath = encodeURIComponent(filePath);
+    return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media`;
+  } catch (err: any) {
+    console.warn('Firebase Storage upload warning (falling back to inline data):', err?.message || err);
+    return `data:${mimeType};base64,${base64Data}`;
+  }
+}
+
 // Safe Centralized Internal Error Handler
 function handleServerError(res: express.Response, error: any, contextMessage: string) {
   const trackingId = 'err_' + crypto.randomBytes(6).toString('hex');
@@ -1037,7 +1069,7 @@ async function startServer() {
       }
 
       const mime = videoPart.mime_type || 'video/mp4';
-      const videoUrl = `data:${mime};base64,${videoPart.data}`;
+      const videoUrl = await uploadMediaToFirebaseStorage(videoPart.data, mime, 'videos', `video_${uid}_${Date.now()}`);
 
       const newCredits = await deductCreditsFirestore(uid, cost, `توليد فيديو إعلاني: ${product.slice(0, 25)}`);
 
@@ -1204,7 +1236,7 @@ High detail, fluid movement, professional lighting and composition.`;
       }
 
       const mime = videoPart.mime_type || 'video/mp4';
-      const videoUrl = `data:${mime};base64,${videoPart.data}`;
+      const videoUrl = await uploadMediaToFirebaseStorage(videoPart.data, mime, 'videos', `creative_${uid}_${Date.now()}`);
 
       const newCredits = await deductCreditsFirestore(uid, cost, `توليد فيديو إبداعي: ${category || 'قصة'} - ${prompt.slice(0, 20)}`);
 
@@ -1266,7 +1298,7 @@ High detail, fluid movement, professional lighting and composition.`;
       });
 
       if (imageRes.generatedImages && imageRes.generatedImages[0]?.image?.imageBytes) {
-        imageUrl = `data:image/jpeg;base64,${imageRes.generatedImages[0].image.imageBytes}`;
+        imageUrl = await uploadMediaToFirebaseStorage(imageRes.generatedImages[0].image.imageBytes, 'image/jpeg', 'images', `img_${uid}_${Date.now()}`);
       } else {
         throw new Error('لم يتم استلام بيانات الصورة المولدة');
       }
@@ -1755,28 +1787,37 @@ High detail, fluid movement, professional lighting and composition.`;
   // FRONTEND INTEGRATION & SERVING
   // ==========================================
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
+  } else if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
     app.use(express.static(path.join(__dirname, 'dist')));
     app.get('*', (req, res) => {
       res.sendFile(path.join(__dirname, 'dist', 'index.html'));
     });
   }
 
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => {
-    console.log(`🚀 MOLAN AI Server running securely on http://localhost:${port}`);
-    if (hasGeminiApiKey()) {
-      console.log('✅ Gemini API Key detected in environment variables (GEMINI_API_KEY). Ready for AI generation.');
-    } else {
-      console.log('⚠️ Warning: GEMINI_API_KEY is not set in environment variables. Please add GEMINI_API_KEY in Settings > Secrets.');
-    }
-  });
+  if (!process.env.VERCEL) {
+    const port = process.env.PORT || 3000;
+    app.listen(port, () => {
+      console.log(`🚀 MOLAN AI Server running securely on http://localhost:${port}`);
+      if (hasGeminiApiKey()) {
+        console.log('✅ Gemini API Key detected in environment variables (GEMINI_API_KEY). Ready for AI generation.');
+      } else {
+        console.log('⚠️ Warning: GEMINI_API_KEY is not set in environment variables. Please add GEMINI_API_KEY in Settings > Secrets.');
+      }
+    });
+  }
+
+  return app;
 }
 
-startServer();
+const appPromise = startServer();
+
+export default async function handler(req: any, res: any) {
+  const app = await appPromise;
+  return app(req, res);
+}
