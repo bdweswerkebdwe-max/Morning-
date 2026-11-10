@@ -38,17 +38,16 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" dir="rtl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/40 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-white border border-neutral-200 rounded-3xl p-8 relative overflow-hidden shadow-sm">
         <div className="relative z-10 space-y-3 max-w-2xl">
-          <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 px-3 py-1 rounded-full text-xs font-bold">
-            <Edit3 className="w-4 h-4" />
+          <div className="inline-flex items-center gap-2 bg-neutral-100 border border-neutral-200 text-neutral-800 px-3 py-1 rounded-full text-xs font-bold">
+            <Edit3 className="w-4 h-4 text-neutral-600" />
             <span>محرر الفيديو والمونتاج الإعلاني</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white">
+          <h1 className="text-3xl sm:text-4xl font-black text-neutral-900">
             استوديو مونتاج وتحسين الفيديوهات (Video Studio Editor)
           </h1>
-          <p className="text-sm text-slate-300 leading-relaxed">
+          <p className="text-sm text-neutral-600 leading-relaxed">
             أضف الترجمات المصممة التلقائية (Subtitles)، والموسيقى التفاعلية، والشعار المائي، ونسّق الفيديو للإعلانات.
           </p>
         </div>
@@ -56,17 +55,17 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Editor Controls */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
+        <div className="lg:col-span-7 bg-white border border-neutral-200 rounded-3xl p-6 space-y-6 shadow-sm">
           {/* Project Selector */}
           <div>
-            <label className="text-xs font-bold text-slate-300 block mb-2">اختر الفيديو المراد تعديله ومونتاجه:</label>
+            <label className="text-xs font-bold text-neutral-700 block mb-2">اختر الفيديو المراد تعديله ومونتاجه:</label>
             <select
               value={selectedProject?.id || ''}
               onChange={(e) => {
                 const found = videoProjects.find(p => p.id === e.target.value);
                 if (found) setSelectedProject(found);
               }}
-              className="w-full bg-slate-950 text-slate-200 text-xs border border-slate-800 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:border-cyan-500"
+              className="w-full bg-white text-neutral-900 text-xs border border-neutral-200 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:border-neutral-400"
             >
               {videoProjects.length === 0 ? (
                 <option value="">لا توجد فيديوهات سابقة، تم إدراج فيديو عينة للاختبار</option>
@@ -80,8 +79,8 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
 
           {/* Subtitle Style Selector */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 block flex items-center gap-1.5">
-              <Type className="w-4 h-4 text-cyan-400" />
+            <label className="text-xs font-bold text-neutral-700 block flex items-center gap-1.5">
+              <Type className="w-4 h-4 text-neutral-600" />
               <span>نمط الخط والترجمة الحركية (Animated Captions):</span>
             </label>
             <div className="grid grid-cols-3 gap-3">
@@ -89,8 +88,8 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
                 onClick={() => setSubtitleStyle('yellow_bold')}
                 className={`p-3 rounded-xl border text-center text-xs font-bold transition ${
                   subtitleStyle === 'yellow_bold'
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                    : 'bg-slate-950 border-slate-800 text-slate-400'
+                    ? 'bg-neutral-900 border-neutral-900 text-white'
+                    : 'bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100'
                 }`}
               >
                 خط أصفر عريض (TikTok Style)
@@ -100,8 +99,8 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
                 onClick={() => setSubtitleStyle('white_shadow')}
                 className={`p-3 rounded-xl border text-center text-xs font-bold transition ${
                   subtitleStyle === 'white_shadow'
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                    : 'bg-slate-950 border-slate-800 text-slate-400'
+                    ? 'bg-neutral-900 border-neutral-900 text-white'
+                    : 'bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100'
                 }`}
               >
                 أبيض مع ظلال سوداء
@@ -111,8 +110,8 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
                 onClick={() => setSubtitleStyle('gradient_box')}
                 className={`p-3 rounded-xl border text-center text-xs font-bold transition ${
                   subtitleStyle === 'gradient_box'
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                    : 'bg-slate-950 border-slate-800 text-slate-400'
+                    ? 'bg-neutral-900 border-neutral-900 text-white'
+                    : 'bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100'
                 }`}
               >
                 صندوق تدرج ملون (Clean Box)
@@ -122,14 +121,14 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
 
           {/* Background Audio Track */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300 block flex items-center gap-1.5">
-              <Music className="w-4 h-4 text-cyan-400" />
+            <label className="text-xs font-bold text-neutral-700 block flex items-center gap-1.5">
+              <Music className="w-4 h-4 text-neutral-600" />
               <span>الموسيقى الخلفية الإعلانية:</span>
             </label>
             <select
               value={musicTrack}
               onChange={(e) => setMusicTrack(e.target.value)}
-              className="w-full bg-slate-950 text-slate-200 text-xs border border-slate-800 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:border-cyan-500"
+              className="w-full bg-white text-neutral-900 text-xs border border-neutral-200 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:border-neutral-400"
             >
               <option value="upbeat_commercial">حماسية تجارية (Upbeat Commercial)</option>
               <option value="cinematic_ambient">سينمائية هادئة (Cinematic Ambient)</option>
@@ -140,20 +139,20 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
 
           {/* Watermark Logo */}
           <div>
-            <label className="text-xs font-bold text-slate-300 block mb-1.5">نص الشعار أو العلامة المائية:</label>
+            <label className="text-xs font-bold text-neutral-700 block mb-1.5">نص الشعار أو العلامة المائية:</label>
             <input
               type="text"
               value={watermarkText}
               onChange={(e) => setWatermarkText(e.target.value)}
               placeholder="علامتك التجاري..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-cyan-500"
+              className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-3 text-xs text-neutral-900 focus:outline-none focus:border-neutral-400"
             />
           </div>
 
           <button
             onClick={handleExport}
             disabled={isExporting}
-            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-cyan-600/30 transition flex items-center justify-center gap-2"
+            className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-4 rounded-2xl shadow-sm transition flex items-center justify-center gap-2"
           >
             {isExporting ? (
               <>
@@ -170,18 +169,18 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
         </div>
 
         {/* Video Canvas Preview */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between shadow-xl min-h-[480px]">
-          <h3 className="text-sm font-bold text-slate-200">معاينة المحرر التفاعلية</h3>
+        <div className="lg:col-span-5 bg-white border border-neutral-200 rounded-3xl p-6 flex flex-col justify-between shadow-sm min-h-[480px]">
+          <h3 className="text-sm font-bold text-neutral-900">معاينة المحرر التفاعلية</h3>
 
-          <div className="relative aspect-[9/16] max-h-[400px] mx-auto rounded-2xl overflow-hidden border border-slate-800 bg-black shadow-2xl my-auto">
+          <div className="relative aspect-[9/16] max-h-[400px] mx-auto rounded-2xl overflow-hidden border border-neutral-200 bg-black shadow-lg my-auto">
             <video src={videoUrl} controls className="w-full h-full object-cover" />
 
             {/* Live Subtitle Overlay Simulation */}
             <div className="absolute bottom-10 left-4 right-4 text-center pointer-events-none">
-              <span className={`inline-block px-3 py-1.5 rounded-lg text-sm font-black tracking-wide shadow-xl ${
-                subtitleStyle === 'yellow_bold' ? 'bg-amber-400 text-slate-950 uppercase' :
+              <span className={`inline-block px-3 py-1.5 rounded-lg text-sm font-black tracking-wide shadow-md ${
+                subtitleStyle === 'yellow_bold' ? 'bg-amber-400 text-neutral-900 uppercase' :
                 subtitleStyle === 'white_shadow' ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]' :
-                'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
+                'bg-neutral-900 text-white shadow-lg'
               }`}>
                 شاهد النتيجة الذهبية الآن 🚀
               </span>
@@ -189,7 +188,7 @@ export const VideoEditorStudio: React.FC<VideoEditorStudioProps> = ({ user, proj
 
             {/* Live Watermark Overlay */}
             {watermarkText && (
-              <div className="absolute top-4 right-4 bg-slate-950/70 backdrop-blur px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-200 border border-slate-700/50">
+              <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-2.5 py-1 rounded-lg text-[10px] font-bold text-neutral-800 border border-neutral-200">
                 {watermarkText}
               </div>
             )}

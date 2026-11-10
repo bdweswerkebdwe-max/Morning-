@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Sparkles, Upload, Layers, CheckCircle2, Video, ArrowRight, Image as ImageIcon, Loader2, X } from 'lucide-react';
+import { ShoppingBag, Sparkles, Upload, Layers, Video, ArrowRight, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { User } from '../types';
 import { processAndNormalizeImage } from '../utils/imageUtils';
 
@@ -11,7 +11,7 @@ interface ProductAdsStudioProps {
   onNavigateToVideoStudio?: () => void;
 }
 
-export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token, setUser, onSaveProject, onNavigateToVideoStudio }) => {
+export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user: _user, token, setUser, onSaveProject, onNavigateToVideoStudio }) => {
   const [productName, setProductName] = useState('');
   const [productCategory, setProductCategory] = useState('perfumes');
   const [mode, setMode] = useState<'photoshoot' | 'unboxing' | 'actor_hold' | 'callout'>('photoshoot');
@@ -46,7 +46,7 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
     setIsGenerating(true);
 
     try {
-      await new Promise(r => setTimeout(r, 2500));
+      await new Promise(r => setTimeout(r, 2000));
       const mockResult = productImage || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&auto=format&fit=crop&q=80';
       setResultImage(mockResult);
 
@@ -64,104 +64,101 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" dir="rtl">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-neutral-900" dir="rtl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 space-y-3">
-          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold">
-            <ShoppingBag className="w-4 h-4" />
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 relative overflow-hidden shadow-2xs">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-1.5 bg-neutral-100 border border-neutral-200 text-neutral-800 px-3 py-1 rounded text-xs font-bold">
+            <ShoppingBag className="w-3.5 h-3.5 text-neutral-900" />
             <span>استوديو تصوير المنتجات التجاري</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white">
-            استوديو إعلانات المنتجات الاحترافي (Product Ads)
+          <h1 className="text-2xl sm:text-3xl font-black text-neutral-900">
+            استوديو إعلانات المنتجات (Product Ads)
           </h1>
-          <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-            تحويل صورة منتجك البسيطة إلى جلسة تصوير فاخرة، أو فيديو فتح الصندوق (Unboxing)، أو إعلان سينمائي يظهر فيه الممثل وهو يستعرض منتجك.
+          <p className="text-xs text-neutral-500 max-w-2xl leading-relaxed">
+            تحويل صورة منتجك البسيطة إلى جلسة تصوير فاخرة، أو فيديو فتح الصندوق (Unboxing)، أو إعلان سينمائي.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Settings Panel */}
-        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
-          {/* Mode Selector */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-300">نمط الإعلان المطلوب:</label>
-            <div className="grid grid-cols-2 gap-3">
+        <div className="lg:col-span-7 bg-white border border-neutral-200 rounded-xl p-6 space-y-5 shadow-2xs">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-neutral-800">نمط الإعلان المطلوب:</label>
+            <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={() => setMode('photoshoot')}
-                className={`p-3.5 rounded-2xl border text-right transition ${
+                className={`p-3 rounded-lg border text-right transition ${
                   mode === 'photoshoot'
-                    ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-lg'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
                 }`}
               >
-                <ImageIcon className="w-5 h-5 text-emerald-400 mb-2" />
+                <ImageIcon className="w-4 h-4 mb-1.5" />
                 <p className="text-xs font-bold">جلسة تصوير استوديو</p>
-                <p className="text-[10px] text-slate-400">توليد خلفية سينمائية للمنتج</p>
+                <p className={`text-[10px] ${mode === 'photoshoot' ? 'text-neutral-300' : 'text-neutral-500'}`}>توليد خلفية سينمائية للمنتج</p>
               </button>
 
               <button
                 onClick={() => setMode('actor_hold')}
-                className={`p-3.5 rounded-2xl border text-right transition ${
+                className={`p-3 rounded-lg border text-right transition ${
                   mode === 'actor_hold'
-                    ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-lg'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
                 }`}
               >
-                <Sparkles className="w-5 h-5 text-amber-400 mb-2" />
+                <Sparkles className="w-4 h-4 mb-1.5" />
                 <p className="text-xs font-bold">ممثل يحمل المنتج</p>
-                <p className="text-[10px] text-slate-400">عرض المنتج بين يدي الممثل</p>
+                <p className={`text-[10px] ${mode === 'actor_hold' ? 'text-neutral-300' : 'text-neutral-500'}`}>عرض المنتج بين يدي الممثل</p>
               </button>
 
               <button
                 onClick={() => setMode('unboxing')}
-                className={`p-3.5 rounded-2xl border text-right transition ${
+                className={`p-3 rounded-lg border text-right transition ${
                   mode === 'unboxing'
-                    ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-lg'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
                 }`}
               >
-                <Video className="w-5 h-5 text-blue-400 mb-2" />
+                <Video className="w-4 h-4 mb-1.5" />
                 <p className="text-xs font-bold">فيديو Unboxing</p>
-                <p className="text-[10px] text-slate-400">تجربة فتح العلبة واستعراض التفاصيل</p>
+                <p className={`text-[10px] ${mode === 'unboxing' ? 'text-neutral-300' : 'text-neutral-500'}`}>تجربة فتح العلبة واستعراض التفاصيل</p>
               </button>
 
               <button
                 onClick={() => setMode('callout')}
-                className={`p-3.5 rounded-2xl border text-right transition ${
+                className={`p-3 rounded-lg border text-right transition ${
                   mode === 'callout'
-                    ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-lg'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    ? 'bg-neutral-900 text-white border-neutral-900'
+                    : 'bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50'
                 }`}
               >
-                <Layers className="w-5 h-5 text-purple-400 mb-2" />
+                <Layers className="w-4 h-4 mb-1.5" />
                 <p className="text-xs font-bold">إبرز الميزات التوضيحية</p>
-                <p className="text-[10px] text-slate-400">إضافة نصوص تفاعلية حول المنتج</p>
+                <p className={`text-[10px] ${mode === 'callout' ? 'text-neutral-300' : 'text-neutral-500'}`}>إضافة نصوص تفاعلية حول المنتج</p>
               </button>
             </div>
           </div>
 
-          {/* Product Details */}
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div>
-              <label className="text-xs font-bold text-slate-300 block mb-1.5">اسم أو وصف المنتج التجاري:</label>
+              <label className="text-xs font-bold text-neutral-800 block mb-1">اسم أو وصف المنتج التجاري:</label>
               <input
                 type="text"
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
-                placeholder="مثال: عطور لافيرن المبتكرة، ساعة فاخرة مقاومة للماء..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500"
+                placeholder="مثال: عطور مبتكرة، ساعة فاخرة..."
+                className="w-full bg-white border border-neutral-200 rounded-lg px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:border-neutral-900"
               />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-300 block mb-1.5">تصنيف المنتج:</label>
+              <label className="text-xs font-bold text-neutral-800 block mb-1">تصنيف المنتج:</label>
               <select
                 value={productCategory}
                 onChange={(e) => setProductCategory(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                className="w-full bg-white border border-neutral-200 rounded-lg px-3.5 py-2 text-xs text-neutral-900 focus:outline-none focus:border-neutral-900 font-semibold"
               >
                 <option value="perfumes">عطور ومستحضرات تجميل</option>
                 <option value="fashion">أزياء وملابس واكسسوارات</option>
@@ -171,10 +168,9 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
               </select>
             </div>
 
-            {/* Upload Area */}
             <div>
-              <label className="text-xs font-bold text-slate-300 block mb-1.5">صورة المنتج الأصلي (تدعم JPG, PNG, WEBP, GIF, HEIC):</label>
-              <div className="border-2 border-dashed border-slate-800 hover:border-emerald-500 rounded-2xl p-4 text-center cursor-pointer bg-slate-950 relative">
+              <label className="text-xs font-bold text-neutral-800 block mb-1">صورة المنتج الأصلي:</label>
+              <div className="border border-dashed border-neutral-300 hover:border-neutral-500 rounded-lg p-3.5 text-center cursor-pointer bg-neutral-50 relative">
                 <input
                   type="file"
                   accept="image/*,.heic,.heif"
@@ -183,18 +179,18 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
                 {isProcessingImage ? (
-                  <div className="flex items-center justify-center gap-2 text-emerald-400 py-3">
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span className="text-xs font-bold">جاري تدقيق وتحويل صيغة الصورة...</span>
+                  <div className="flex items-center justify-center gap-2 text-neutral-800 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-xs font-bold">جاري المعالجة...</span>
                   </div>
                 ) : productImage ? (
-                  <div className="flex items-center justify-center gap-4">
-                    <img src={productImage} alt="Product" className="w-16 h-16 object-cover rounded-xl border border-emerald-500" />
-                    <span className="text-xs text-emerald-400 font-bold">تم إرفاق وتدقيق صورة المنتج بنجاح ✓</span>
+                  <div className="flex items-center justify-center gap-3">
+                    <img src={productImage} alt="Product" className="w-12 h-12 object-cover rounded border border-neutral-300" />
+                    <span className="text-xs text-neutral-900 font-bold">تم إرفاق الصورة ✓</span>
                     <button
                       type="button"
                       onClick={() => setProductImage(null)}
-                      className="p-1 text-slate-400 hover:text-red-400 transition"
+                      className="p-1 text-neutral-400 hover:text-red-600 transition"
                       title="حذف الصورة"
                     >
                       <X className="w-4 h-4" />
@@ -202,9 +198,8 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <Upload className="w-6 h-6 text-emerald-400 mx-auto" />
-                    <p className="text-xs font-bold text-slate-300">اضغط لرفع صورة المنتج الأصلي (JPG, PNG, HEIC)</p>
-                    <p className="text-[10px] text-slate-400">سيتم عزل الخلفية وتطبيق الإضاءة الاحترافية تلقائياً</p>
+                    <Upload className="w-5 h-5 text-neutral-800 mx-auto" />
+                    <p className="text-xs font-bold text-neutral-800">اضغط لرفع صورة المنتج (JPG, PNG, HEIC)</p>
                   </div>
                 )}
               </div>
@@ -212,7 +207,7 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
           </div>
 
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400 font-bold">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 font-bold">
               {error}
             </div>
           )}
@@ -220,16 +215,16 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
           <button
             onClick={handleGenerateProductAd}
             disabled={isGenerating || isProcessingImage}
-            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-3 rounded-lg shadow-xs transition flex items-center justify-center gap-2 disabled:opacity-50 text-xs"
           >
             {isGenerating ? (
               <>
-                <Sparkles className="w-5 h-5 animate-spin" />
-                <span>جاري تصوير وتوليد مشهد المنتج الاحترافي...</span>
+                <Sparkles className="w-4 h-4 animate-spin text-white" />
+                <span>جاري معالجة المنتج...</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-5 h-5" />
+                <Sparkles className="w-4 h-4 text-white" />
                 <span>توليد إعلان المنتج الآن (2 نقطة)</span>
               </>
             )}
@@ -237,41 +232,41 @@ export const ProductAdsStudio: React.FC<ProductAdsStudioProps> = ({ user, token,
         </div>
 
         {/* Live Preview Panel */}
-        <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between shadow-xl min-h-[450px]">
-          <h3 className="text-sm font-bold text-slate-200">معاينة استوديو المنتج الناتج</h3>
+        <div className="lg:col-span-5 bg-white border border-neutral-200 rounded-xl p-5 flex flex-col justify-between shadow-2xs min-h-[420px]">
+          <h3 className="text-xs font-bold text-neutral-900">معاينة الناتج</h3>
 
           {resultImage ? (
-            <div className="space-y-4 my-auto">
-              <div className="aspect-[9/16] max-h-[380px] mx-auto rounded-2xl overflow-hidden border border-emerald-500/40 relative shadow-2xl">
+            <div className="space-y-3 my-auto">
+              <div className="aspect-[9/16] max-h-[350px] mx-auto rounded-lg overflow-hidden border border-neutral-200 relative shadow-2xs bg-neutral-900">
                 <img src={resultImage} alt="Rendered Ad" className="w-full h-full object-cover" />
-                <div className="absolute bottom-4 left-4 right-4 bg-slate-950/80 backdrop-blur border border-slate-800 p-3 rounded-xl text-xs text-slate-200">
-                  <p className="font-bold text-emerald-400">{productName}</p>
-                  <p className="text-[10px] text-slate-400">نمط: {mode}</p>
+                <div className="absolute bottom-3 left-3 right-3 bg-white/90 backdrop-blur border border-neutral-200 p-2.5 rounded-lg text-xs text-neutral-900">
+                  <p className="font-bold">{productName}</p>
+                  <p className="text-[10px] text-neutral-500">نمط: {mode}</p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <a
                   href={resultImage}
                   download="product-ad.png"
-                  className="flex-1 text-center bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs"
+                  className="flex-1 text-center bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-bold py-2 rounded-lg text-xs"
                 >
-                  تحميل الصورة عالية الدقة 📥
+                  تحميل الصورة 📥
                 </a>
                 {onNavigateToVideoStudio && (
                   <button
                     onClick={onNavigateToVideoStudio}
-                    className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1"
+                    className="flex-1 bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1"
                   >
                     <span>تحويل لفيديو</span>
-                    <ArrowRight className="w-4 h-4 rotate-180" />
+                    <ArrowRight className="w-3.5 h-3.5 rotate-180" />
                   </button>
                 )}
               </div>
             </div>
           ) : (
-            <div className="my-auto text-center space-y-3 p-8 border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">
-              <ShoppingBag className="w-12 h-12 text-slate-600 mx-auto" />
-              <p className="text-xs text-slate-400">قم بتعبئة بيانات المنتج واضغط توليد لرؤية النتيجة السحرية هنا</p>
+            <div className="my-auto text-center space-y-2 p-6 border border-dashed border-neutral-200 rounded-lg bg-neutral-50">
+              <ShoppingBag className="w-10 h-10 text-neutral-400 mx-auto" />
+              <p className="text-xs text-neutral-500">قم بتعبئة البيانات واضغط على توليد لرؤية النتيجة هنا</p>
             </div>
           )}
         </div>

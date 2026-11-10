@@ -20,16 +20,16 @@ export const TemplatesView: React.FC<TemplatesViewProps> = ({ onSelectTemplate }
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8" dir="rtl">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
         <div>
-          <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 px-3.5 py-1.5 rounded-full text-indigo-300 text-xs font-bold mb-3">
-            <Sparkles className="w-4 h-4" />
+          <div className="inline-flex items-center gap-2 bg-neutral-100 border border-neutral-200 px-3.5 py-1.5 rounded-full text-neutral-800 text-xs font-bold mb-3 shadow-sm">
+            <Sparkles className="w-4 h-4 text-neutral-700" />
             <span>مكتبة القوالب التسويقية الجاهزة</span>
           </div>
-          <h1 className="text-3xl font-black text-white">قوالب الإعلانات الاحترافية</h1>
-          <p className="text-slate-400 text-sm mt-1">اختر قالباً جاهزاً ومصمماً بعناية لاختصار وقتك وبدء حملتك الإعلانية فوراً</p>
+          <h1 className="text-3xl font-black text-neutral-900">قوالب الإعلانات الاحترافية</h1>
+          <p className="text-neutral-600 text-sm mt-1">اختر قالباً جاهزاً ومصمماً بعناية لاختصار وقتك وبدء حملتك الإعلانية فوراً</p>
         </div>
       </div>
 
@@ -39,29 +39,29 @@ export const TemplatesView: React.FC<TemplatesViewProps> = ({ onSelectTemplate }
           return (
             <div
               key={tpl.id}
-              className="bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 rounded-3xl p-6 transition-all duration-300 shadow-xl flex flex-col justify-between group"
+              className="bg-white border border-neutral-200 hover:border-neutral-400 rounded-3xl p-6 transition-all duration-300 shadow-sm flex flex-col justify-between group"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition">
+                  <div className="w-12 h-12 rounded-2xl bg-neutral-100 border border-neutral-200 flex items-center justify-center text-neutral-800 group-hover:scale-105 transition">
                     <IconComponent className="w-6 h-6" />
                   </div>
-                  <span className="text-xs font-bold bg-slate-800 text-slate-300 px-3 py-1 rounded-full">
+                  <span className="text-xs font-bold bg-neutral-100 text-neutral-800 px-3 py-1 rounded-full border border-neutral-200">
                     {tpl.category}
                   </span>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-bold text-white mb-2">{tpl.title}</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">{tpl.description}</p>
+                  <h3 className="text-xl font-bold text-neutral-900 mb-2">{tpl.title}</h3>
+                  <p className="text-neutral-600 text-sm leading-relaxed">{tpl.description}</p>
                 </div>
               </div>
 
-              <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between">
-                <span className="text-xs text-slate-500">منصة: {tpl.platform}</span>
+              <div className="pt-6 mt-6 border-t border-neutral-100 flex items-center justify-between">
+                <span className="text-xs text-neutral-500">منصة: {tpl.platform}</span>
                 <button
                   onClick={() => onSelectTemplate(tpl)}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition"
+                  className="bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition"
                 >
                   <span>استخدام القالب</span>
                   <ArrowLeft className="w-4 h-4" />

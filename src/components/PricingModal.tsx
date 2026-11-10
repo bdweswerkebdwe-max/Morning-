@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Check, X, Zap, Crown, Shield } from 'lucide-react';
+import { Sparkles, Check, X, Zap } from 'lucide-react';
 import { User } from '../types';
 
 interface PricingModalProps {
@@ -48,8 +48,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, use
       name: 'الباقة المجانية',
       price: '0$',
       credits: '50 نقطة',
-      features: ['توليد حتى 5 فيديوهات شهرياً', 'دقة 720p مقبولة', 'مقاس 9:16 و 1:1', 'دعم فني عبر البريد'],
-      color: 'border-slate-800 bg-slate-950',
+      features: ['توليد حتى 5 فيديوهات شهرياً', 'دقة 720p', 'مقاس 9:16 و 1:1', 'دعم فني عبر البريد'],
       btnText: 'باقتك الحالية',
     },
     {
@@ -58,7 +57,6 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, use
       price: '29$',
       credits: '500 نقطة',
       features: ['توليد حتى 50 فيديو شهرياً', 'دقة عالية HD و 4K', 'جميع المقاسات (9:16, 1:1, 16:9)', 'تعليق صوتي وموسيقى متقدمة', 'أولوية قصوى في خوادم التوليد'],
-      color: 'border-amber-500/50 bg-slate-900 shadow-xl shadow-amber-500/10',
       btnText: 'ترقية إلى محترف',
       popular: true,
     },
@@ -67,74 +65,73 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, use
       name: 'باقة الشركات (Enterprise)',
       price: '99$',
       credits: '2000 نقطة',
-      features: ['فيديوهات غير محدودة التقريب', 'دعم نماذج Omni المتقدمة', 'أدوات مخصصة للعلامة التجارية', 'مدير حساب خاص وتدريب فردي'],
-      color: 'border-purple-500/50 bg-slate-950',
+      features: ['فيديوهات غير محدودة', 'دعم نماذج Omni المتقدمة', 'أدوات مخصصة للعلامة التجارية', 'مدير حساب خاص وتدريب فردي'],
       btnText: 'اشتراك الشركات',
     },
   ];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-4xl w-full p-8 space-y-8 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500" />
-
-        <div className="flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white border border-neutral-200 rounded-xl max-w-4xl w-full p-6 sm:p-8 space-y-6 shadow-xl relative max-h-[90vh] overflow-y-auto text-neutral-900">
+        <div className="flex items-center justify-between border-b border-neutral-100 pb-4">
           <div>
-            <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3.5 py-1.5 rounded-full text-amber-300 text-xs font-bold mb-2">
-              <Sparkles className="w-4 h-4" />
+            <div className="inline-flex items-center gap-1.5 bg-neutral-100 border border-neutral-200 px-3 py-1 rounded text-neutral-800 text-xs font-bold mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-neutral-900" />
               <span>ترقية الباقة ورصيد النقاط</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white">اختر الباقة المناسبة لأعمالك</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-neutral-900">اختر الباقة المناسبة لأعمالك</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl transition"
+            className="p-1.5 text-neutral-400 hover:text-neutral-900 bg-neutral-100 rounded transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {plans.map((plan) => {
             const isCurrent = user?.tier === plan.id;
             return (
-              <div key={plan.id} className={`border rounded-3xl p-6 flex flex-col justify-between relative ${plan.color}`}>
+              <div key={plan.id} className={`border rounded-xl p-5 flex flex-col justify-between relative bg-white ${
+                plan.popular ? 'border-neutral-900 shadow-xs' : 'border-neutral-200'
+              }`}>
                 {plan.popular && (
-                  <span className="absolute -top-3 right-6 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[10px] font-black px-3 py-1 rounded-full shadow-lg">
-                    الأكثر طلباً ⭐
+                  <span className="absolute -top-3 right-4 bg-neutral-900 text-white text-[10px] font-bold px-2.5 py-0.5 rounded shadow-xs">
+                    الأكثر طلباً
                   </span>
                 )}
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div>
-                    <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                    <div className="flex items-baseline gap-1 mt-2">
-                      <span className="text-3xl font-black text-white">{plan.price}</span>
-                      <span className="text-xs text-slate-400">/ شهرياً</span>
+                    <h3 className="text-sm font-bold text-neutral-900">{plan.name}</h3>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-2xl font-black text-neutral-900">{plan.price}</span>
+                      <span className="text-xs text-neutral-500">/ شهرياً</span>
                     </div>
-                    <p className="text-xs text-amber-400 font-bold mt-1">{plan.credits}</p>
+                    <p className="text-xs text-neutral-700 font-bold mt-0.5">{plan.credits}</p>
                   </div>
 
-                  <ul className="space-y-2.5 pt-4 border-t border-slate-800 text-xs text-slate-300">
+                  <ul className="space-y-2 pt-3 border-t border-neutral-100 text-xs text-neutral-600">
                     {plan.features.map((feat, idx) => (
                       <li key={idx} className="flex items-center gap-2">
-                        <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-neutral-900 shrink-0" />
                         <span>{feat}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-slate-800">
+                <div className="pt-4 mt-4 border-t border-neutral-100">
                   <button
                     disabled={isCurrent || loadingTier === plan.id}
                     onClick={() => handleSelectTier(plan.id as any)}
-                    className={`w-full py-3 rounded-xl font-bold text-xs transition ${
+                    className={`w-full py-2.5 rounded-lg font-bold text-xs transition ${
                       isCurrent
-                        ? 'bg-slate-800 text-slate-400 cursor-default'
+                        ? 'bg-neutral-100 text-neutral-400 cursor-default'
                         : plan.popular
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white shadow-lg shadow-amber-600/30'
-                        : 'bg-slate-800 hover:bg-slate-700 text-white'
+                        ? 'bg-neutral-900 hover:bg-neutral-800 text-white'
+                        : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-900'
                     }`}
                   >
                     {isCurrent ? 'باقتك الحالية' : loadingTier === plan.id ? 'جاري التفعيل...' : plan.btnText}
@@ -145,21 +142,21 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, use
           })}
         </div>
 
-        {/* Coupon Code Redeem Section */}
-        <div className="bg-slate-950 border border-slate-800 p-6 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Coupon Code Section */}
+        <div className="bg-neutral-50 border border-neutral-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3">
           <div>
-            <h4 className="text-sm font-bold text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400" />
+            <h4 className="text-xs font-bold text-neutral-900 flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-neutral-800" />
               <span>هل لديك كود كوبون أو رمز ترويجي؟</span>
             </h4>
-            <p className="text-xs text-slate-400 mt-1">جرب إدخال كود التجربة الترحيبي <code className="text-amber-400 font-bold bg-slate-900 px-1.5 py-0.5 rounded">MOUULIN2026</code> وشحن رصيدك فوراً!</p>
+            <p className="text-[11px] text-neutral-500 mt-0.5">جرب إدخال كود التجربة الترحيبي <code className="text-neutral-900 font-bold bg-neutral-200 px-1 py-0.5 rounded">MOUULIN2026</code> وشحن رصيدك فوراً!</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <input
               type="text"
               id="couponInput"
               placeholder="كود الكوبون..."
-              className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white uppercase font-bold focus:outline-none focus:border-amber-500 w-full sm:w-44"
+              className="bg-white border border-neutral-200 rounded-lg px-3 py-2 text-xs text-neutral-900 uppercase font-bold focus:outline-none focus:border-neutral-900 w-full sm:w-36"
             />
             <button
               onClick={async () => {
@@ -184,22 +181,21 @@ export const PricingModal: React.FC<PricingModalProps> = ({ isOpen, onClose, use
                   } else {
                     alert(data.error);
                   }
-                } catch (e: any) {
+                } catch {
                   alert('فشل تفعيل الكوبون');
                 }
               }}
-              className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs whitespace-nowrap shadow transition"
+              className="bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-4 py-2 rounded-lg text-xs whitespace-nowrap transition"
             >
-              شحن الكوبون 🎟️
+              تفعيل الكوبون
             </button>
           </div>
         </div>
 
-        <p className="text-center text-slate-500 text-xs">
+        <p className="text-center text-neutral-400 text-[11px]">
           بوابات الدفع الإلكترونية آمنة ومشفرة بالكامل. يمكنك إلغاء الاشتراك في أي وقت.
         </p>
       </div>
     </div>
   );
 };
-

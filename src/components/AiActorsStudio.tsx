@@ -124,24 +124,23 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" dir="rtl">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/50 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-white border border-neutral-200 rounded-3xl p-8 relative overflow-hidden shadow-sm">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 px-3 py-1 rounded-full text-xs font-bold">
-              <ShieldCheck className="w-4 h-4" />
+            <div className="inline-flex items-center gap-2 bg-neutral-100 border border-neutral-200 text-neutral-800 px-3 py-1 rounded-full text-xs font-bold">
+              <ShieldCheck className="w-4 h-4 text-neutral-600" />
               <span>مكتبة ممثلين مرخصة 100% تجارياً</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white">
+            <h1 className="text-3xl sm:text-4xl font-black text-neutral-900">
               استوديو الممثلين الافتراضيين (AI Avatars)
             </h1>
-            <p className="text-sm text-slate-300 leading-relaxed">
+            <p className="text-sm text-neutral-600 leading-relaxed">
               اختر الممثل الإعلاني المناسب لمنتجك بعصابة رأس سعودية، لهجة مصرية، إماراتية، أو فصحى رسمية مع نبرة صوت حماسية ومطابقة للحقوق التجارية.
             </p>
           </div>
           <button
             onClick={() => setIsCustomModalOpen(true)}
-            className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold px-6 py-3.5 rounded-2xl shadow-lg shadow-amber-600/30 transition text-sm whitespace-nowrap"
+            className="flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white font-bold px-6 py-3.5 rounded-2xl shadow-sm transition text-sm whitespace-nowrap"
           >
             <Plus className="w-5 h-5" />
             <span>إنشاء ممثل مخصص بحقوقك</span>
@@ -150,29 +149,29 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
       </div>
 
       {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-        <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-          <Filter className="w-4 h-4 text-amber-400" />
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-neutral-200 p-4 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-2 text-xs font-bold text-neutral-700">
+          <Filter className="w-4 h-4 text-neutral-600" />
           <span>تصفية الممثلين:</span>
         </div>
 
         {/* Gender Filter */}
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+        <div className="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl border border-neutral-200 text-xs">
           <button
             onClick={() => setSelectedGender('all')}
-            className={`px-3 py-1.5 rounded-lg transition font-semibold ${selectedGender === 'all' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-lg transition font-semibold ${selectedGender === 'all' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'}`}
           >
             الكل ({AI_ACTORS_DATA.length})
           </button>
           <button
             onClick={() => setSelectedGender('male')}
-            className={`px-3 py-1.5 rounded-lg transition font-semibold ${selectedGender === 'male' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-lg transition font-semibold ${selectedGender === 'male' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'}`}
           >
             ذكور
           </button>
           <button
             onClick={() => setSelectedGender('female')}
-            className={`px-3 py-1.5 rounded-lg transition font-semibold ${selectedGender === 'female' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            className={`px-3 py-1.5 rounded-lg transition font-semibold ${selectedGender === 'female' ? 'bg-neutral-900 text-white' : 'text-neutral-600 hover:text-neutral-900'}`}
           >
             إناث
           </button>
@@ -182,7 +181,7 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
         <select
           value={selectedDialect}
           onChange={(e) => setSelectedDialect(e.target.value)}
-          className="bg-slate-950 text-slate-200 text-xs border border-slate-800 rounded-xl px-4 py-2 font-semibold focus:outline-none focus:border-amber-500"
+          className="bg-white text-neutral-800 text-xs border border-neutral-200 rounded-xl px-4 py-2 font-semibold focus:outline-none focus:border-neutral-400"
         >
           <option value="all">جميع اللهجات العربية والأجنبية</option>
           <option value="saudi">سعودي (الرياض وجدة)</option>
@@ -199,26 +198,26 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
         {filteredActors.map((actor) => (
           <div
             key={actor.id}
-            className="group bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-2xl overflow-hidden transition-all duration-300 shadow-xl flex flex-col justify-between"
+            className="group bg-white border border-neutral-200 hover:border-neutral-400 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm flex flex-col justify-between"
           >
-            <div className="relative aspect-[3/4] overflow-hidden bg-slate-950">
+            <div className="relative aspect-[3/4] overflow-hidden bg-neutral-100">
               <img
                 src={actor.avatarUrl}
                 alt={actor.nameAr}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/60 via-transparent to-transparent" />
               
-              <div className="absolute top-3 right-3 bg-slate-900/80 backdrop-blur border border-slate-700/60 px-2.5 py-1 rounded-lg text-[10px] font-bold text-amber-300">
+              <div className="absolute top-3 right-3 bg-white/90 backdrop-blur border border-neutral-200 px-2.5 py-1 rounded-lg text-[10px] font-bold text-neutral-800">
                 {actor.age}
               </div>
 
               {actor.videoPreviewUrl && (
                 <button
                   onClick={() => setPreviewActor(actor)}
-                  className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  <div className="w-12 h-12 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 rounded-full bg-neutral-900 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
                     <Play className="w-6 h-6 fill-white ml-1" />
                   </div>
                 </button>
@@ -227,22 +226,22 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
 
             <div className="p-4 space-y-3">
               <div>
-                <h3 className="text-base font-bold text-white group-hover:text-amber-400 transition">
+                <h3 className="text-base font-bold text-neutral-900 group-hover:text-black transition">
                   {actor.nameAr}
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">{actor.dialectNameAr}</p>
+                <p className="text-xs text-neutral-500 mt-0.5">{actor.dialectNameAr}</p>
               </div>
 
-              <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
+              <div className="flex items-center gap-2 pt-2 border-t border-neutral-100">
                 <button
                   onClick={() => handleVoiceTest(actor.id)}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold border transition ${
                     isPlayingAudio === actor.id
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                      : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-neutral-900 text-white border-neutral-900'
+                      : 'bg-neutral-50 border-neutral-200 text-neutral-700 hover:bg-neutral-100'
                   }`}
                 >
-                  <Volume2 className={`w-3.5 h-3.5 ${isPlayingAudio === actor.id ? 'animate-bounce text-amber-400' : ''}`} />
+                  <Volume2 className={`w-3.5 h-3.5 ${isPlayingAudio === actor.id ? 'animate-bounce text-neutral-200' : ''}`} />
                   <span>{isPlayingAudio === actor.id ? 'جاري الاستماع...' : 'معاينة الصوت'}</span>
                 </button>
 
@@ -251,7 +250,7 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
                     if (onSelectActor) onSelectActor(actor);
                     if (onNavigateToVideoStudio) onNavigateToVideoStudio(actor.id);
                   }}
-                  className="bg-amber-600 hover:bg-amber-500 text-white p-2 rounded-xl transition shadow"
+                  className="bg-neutral-900 hover:bg-neutral-800 text-white p-2 rounded-xl transition shadow-sm"
                   title="استخدام الممثل في فيديو إعلاني"
                 >
                   <Sparkles className="w-4 h-4" />
@@ -264,11 +263,11 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
 
       {/* Video Preview Modal */}
       {previewActor && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-neutral-200 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">معاينة فيديو الممثل: {previewActor.nameAr}</h3>
-              <button onClick={() => setPreviewActor(null)} className="text-slate-400 hover:text-white text-sm">إغلاق ✕</button>
+              <h3 className="text-lg font-bold text-neutral-900">معاينة فيديو الممثل: {previewActor.nameAr}</h3>
+              <button onClick={() => setPreviewActor(null)} className="text-neutral-500 hover:text-neutral-900 text-sm font-semibold">إغلاق ✕</button>
             </div>
             <div className="aspect-[9/16] bg-black rounded-2xl overflow-hidden max-h-[60vh] mx-auto">
               <video src={previewActor.videoPreviewUrl} controls autoPlay className="w-full h-full object-cover" />
@@ -279,7 +278,7 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
                   if (onNavigateToVideoStudio) onNavigateToVideoStudio(previewActor.id);
                   setPreviewActor(null);
                 }}
-                className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-xl transition"
+                className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-3 rounded-xl transition shadow-sm"
               >
                 اختيار الممثل لبدء التوليد الإعلاني 🚀
               </button>
@@ -290,25 +289,25 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
 
       {/* Request Custom Actor Modal */}
       {isCustomModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-neutral-200 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Upload className="w-5 h-5 text-amber-400" />
+              <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-neutral-700" />
                 <span>إنشاء ممثل افتراضي مخصص</span>
               </h3>
-              <button onClick={() => setIsCustomModalOpen(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button onClick={() => setIsCustomModalOpen(false)} className="text-neutral-500 hover:text-neutral-900 font-bold">✕</button>
             </div>
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-neutral-600">
               قم برفع صورة الشخصية وإقرار موافقة المالك، وسيقوم استوديو معلن بتدريب النموذج لإنشاء شخصية افتراضية خاصة بشركتك.
             </p>
-            <div className="border-2 border-dashed border-slate-700 hover:border-amber-500 rounded-2xl p-6 text-center space-y-2 cursor-pointer bg-slate-950/50">
-              <Upload className="w-8 h-8 text-amber-400 mx-auto" />
-              <p className="text-xs font-bold text-white">اختر صورة الممثل أو اسحبها هنا</p>
-              <p className="text-[10px] text-slate-400">يدعم PNG / JPG بحجم أقصى 10MB</p>
+            <div className="border-2 border-dashed border-neutral-300 hover:border-neutral-500 rounded-2xl p-6 text-center space-y-2 cursor-pointer bg-neutral-50">
+              <Upload className="w-8 h-8 text-neutral-500 mx-auto" />
+              <p className="text-xs font-bold text-neutral-800">اختر صورة الممثل أو اسحبها هنا</p>
+              <p className="text-[10px] text-neutral-500">يدعم PNG / JPG بحجم أقصى 10MB</p>
             </div>
-            <div className="flex items-center gap-2 text-[10px] text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="flex items-center gap-2 text-[10px] text-neutral-600 bg-neutral-50 p-3 rounded-xl border border-neutral-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>يتطلب موافقة خطية صريحة من صاحب الوجه لحماية حقوق الملكية والأمن السيبراني.</span>
             </div>
             <button
@@ -316,7 +315,7 @@ export const AiActorsStudio: React.FC<AiActorsStudioProps> = ({ onSelectActor, o
                 alert('تم إرسال طلب إنشاء الممثل المخصص بنجاح إلى فريق التدريب!');
                 setIsCustomModalOpen(false);
               }}
-              className="w-full bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold py-3 rounded-xl"
+              className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-3 rounded-xl shadow-sm"
             >
               إرسال طلب التدريب 📤
             </button>

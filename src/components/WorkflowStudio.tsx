@@ -80,46 +80,45 @@ export const WorkflowStudio: React.FC<WorkflowStudioProps> = ({ user, onSaveProj
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8" dir="rtl">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 rounded-3xl p-8 relative overflow-hidden shadow-2xl">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-white border border-neutral-200 rounded-3xl p-8 relative overflow-hidden shadow-sm">
         <div className="relative z-10 space-y-3 max-w-2xl">
-          <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-3 py-1 rounded-full text-xs font-bold">
-            <Layers className="w-4 h-4" />
+          <div className="inline-flex items-center gap-2 bg-neutral-100 border border-neutral-200 text-neutral-800 px-3 py-1 rounded-full text-xs font-bold">
+            <Layers className="w-4 h-4 text-neutral-600" />
             <span>محرك أتمتة الإعلانات وتكثير النسخ (Workflow Batch)</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white">
+          <h1 className="text-3xl sm:text-4xl font-black text-neutral-900">
             استوديو أتمتة وإنتاج النسخ الإعلانية المتعددة
           </h1>
-          <p className="text-sm text-slate-300 leading-relaxed">
+          <p className="text-sm text-neutral-600 leading-relaxed">
             أدخل منتجك مرة واحدة، وسيساعدك النظام على إنتاج 4-8 نسخ إعلانية مختلفة تلقائياً بتغيير الخطافات، الممثلين، اللهجات، والمقاسات لاختبار (A/B Testing).
           </p>
         </div>
       </div>
 
       {/* Controls */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-5 shadow-xl">
+      <div className="bg-white border border-neutral-200 rounded-3xl p-6 space-y-5 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
           <div className="md:col-span-7">
-            <label className="text-xs font-bold text-slate-300 block mb-1.5">اسم المنتج المراد إنتاج نسخ إعلانية له:</label>
+            <label className="text-xs font-bold text-neutral-700 block mb-1.5">اسم المنتج المراد إنتاج نسخ إعلانية له:</label>
             <input
               type="text"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
               placeholder="مثال: حقيبة أعمال فاخرة ضد السرقة..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white border border-neutral-200 rounded-xl px-4 py-3 text-xs text-neutral-900 focus:outline-none focus:border-neutral-400"
             />
           </div>
 
           <div className="md:col-span-3">
-            <label className="text-xs font-bold text-slate-300 block mb-1.5">عدد النسخ المطلوبة:</label>
+            <label className="text-xs font-bold text-neutral-700 block mb-1.5">عدد النسخ المطلوبة:</label>
             <select
               value={variantCount}
               onChange={(e) => setVariantCount(Number(e.target.value))}
-              className="w-full bg-slate-950 text-slate-200 text-xs border border-slate-800 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white text-neutral-900 text-xs border border-neutral-200 rounded-xl px-4 py-3 font-semibold focus:outline-none focus:border-neutral-400"
             >
               <option value={4}>4 نسخ متوافقة مع A/B Test</option>
               <option value={6}>6 نسخ شاملة بجميع اللهجات</option>
-              <option value={8}>8 نسخ متقدمة لجميع المنصات</option>
+              <option value={8}>8 نسخ متتقدمة لجميع المنصات</option>
             </select>
           </div>
 
@@ -127,7 +126,7 @@ export const WorkflowStudio: React.FC<WorkflowStudioProps> = ({ user, onSaveProj
             <button
               onClick={handleStartWorkflow}
               disabled={isProcessing}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center gap-1.5 text-xs whitespace-nowrap"
+              className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-bold py-3 rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 text-xs whitespace-nowrap"
             >
               {isProcessing ? (
                 <>
@@ -148,28 +147,28 @@ export const WorkflowStudio: React.FC<WorkflowStudioProps> = ({ user, onSaveProj
       {/* Generated Workflow Variants */}
       {generatedVariants.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-lg font-bold text-neutral-900 flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             <span>حزمة النسخ الإعلانية المولدة ({generatedVariants.length} نسخ)</span>
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {generatedVariants.map((variant) => (
-              <div key={variant.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-4 space-y-3 shadow-xl">
+              <div key={variant.id} className="bg-white border border-neutral-200 rounded-2xl overflow-hidden p-4 space-y-3 shadow-sm">
                 <div className="aspect-[9/16] max-h-[220px] mx-auto bg-black rounded-xl overflow-hidden relative">
                   <video src={variant.resultUrl} controls className="w-full h-full object-cover" />
                 </div>
                 <div>
-                  <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full font-bold">
+                  <span className="text-[10px] bg-neutral-100 text-neutral-800 px-2 py-0.5 rounded-full font-bold border border-neutral-200">
                     {variant.aspectRatio}
                   </span>
-                  <h4 className="text-xs font-bold text-white mt-1.5">{variant.hook}</h4>
-                  <p className="text-[10px] text-slate-400 mt-1">الممثل: {variant.actorId}</p>
+                  <h4 className="text-xs font-bold text-neutral-900 mt-1.5">{variant.hook}</h4>
+                  <p className="text-[10px] text-neutral-500 mt-1">الممثل: {variant.actorId}</p>
                 </div>
                 <a
                   href={variant.resultUrl}
                   download="ad-variant.mp4"
-                  className="w-full block text-center bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded-xl text-[10px] transition"
+                  className="w-full block text-center bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-bold py-2 rounded-xl text-[10px] transition"
                 >
                   تحميل هذه النسخة 📥
                 </a>
