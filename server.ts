@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -622,10 +621,10 @@ function securityHeaders(req: express.Request, res: express.Response, next: expr
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Access-Control-Allow-Origin', origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Access-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Access-Token, X-Requested-With');
 
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
+    return res.status(200).end();
   }
   next();
 }
@@ -1787,12 +1786,17 @@ High detail, fluid movement, professional lighting and composition.`;
   // FRONTEND INTEGRATION & SERVING
   // ==========================================
 
-  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+  if (process.env.NODE_ENV === 'development' && !process.env.VERCEL) {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (err) {
+      console.warn('Vite dev middleware not loaded:', err);
+    }
   } else if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
     app.use(express.static(path.join(__dirname, 'dist')));
     app.get('*', (req, res) => {
@@ -1800,7 +1804,8 @@ High detail, fluid movement, professional lighting and composition.`;
     });
   }
 
-  if (!process.env.VERCEL) {
+  const isMainEntry = process.argv[1]?.endsWith('server.ts') || process.argv[1]?.endsWith('server.js') || process.env.LISTEN === 'true';
+  if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME && isMainEntry) {
     const port = process.env.PORT || 3000;
     app.listen(port, () => {
       console.log(`🚀 MOLAN AI Server running securely on http://localhost:${port}`);
@@ -1816,6 +1821,8 @@ High detail, fluid movement, professional lighting and composition.`;
 }
 
 const appPromise = startServer();
+
+export { appPromise, startServer };
 
 export default async function handler(req: any, res: any) {
   const app = await appPromise;
