@@ -47,6 +47,12 @@ export class AuthService {
           messageAr: 'صيغة البريد الإلكتروني غير صالحة',
           messageEn: 'Invalid email address format',
         };
+      case 'auth/unauthorized-domain':
+        return {
+          code,
+          messageAr: 'نطاق هذا الموقع غير مصرح به في إعدادات Firebase Authentication. يرجى إضافة النطاق الحالي في Firebase Console -> Authentication -> Settings -> Authorized Domains',
+          messageEn: 'This domain is not authorized in Firebase Authentication settings. Please add it to Authorized Domains in Firebase Console.',
+        };
       case 'auth/popup-closed-by-user':
         return {
           code,
