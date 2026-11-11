@@ -49,6 +49,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, lang = 'a
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      setLocalError(null);
+      setSuccessMessage(null);
+      clearError();
+    }
+  }, [isOpen, clearError]);
+
   if (!isOpen) return null;
 
   const passwordStrength = AuthService.checkPasswordStrength(password);

@@ -250,15 +250,9 @@ export class AuthService {
       await updateProfile(user, { displayName: fullName.trim() });
     }
 
-    // Send email verification with published domain return URL
+    // Send email verification safely using default handler
     try {
-      const actionCodeSettings = {
-        url: typeof window !== 'undefined' && window.location.origin.includes('morning-whehsn.vercel.app')
-          ? window.location.origin
-          : 'https://morning-whehsn.vercel.app',
-        handleCodeInApp: true,
-      };
-      await sendEmailVerification(user, actionCodeSettings);
+      await sendEmailVerification(user);
     } catch (e: any) {
       console.warn('⚠️ Initial verification email send warning (Firebase Auth user account created successfully):', e?.code || e?.message || e);
     }
@@ -351,15 +345,8 @@ export class AuthService {
       throw { code: 'auth/not-configured' };
     }
 
-    const actionCodeSettings = {
-      url: typeof window !== 'undefined' && window.location.origin.includes('morning-whehsn.vercel.app')
-        ? window.location.origin
-        : 'https://morning-whehsn.vercel.app',
-      handleCodeInApp: true,
-    };
-
     try {
-      await sendPasswordResetEmail(auth, email.trim(), actionCodeSettings);
+      await sendPasswordResetEmail(auth, email.trim());
     } catch (err: any) {
       console.error('❌ sendPasswordReset failed:', err?.code || err?.message || err);
       throw err;
@@ -374,15 +361,8 @@ export class AuthService {
       throw { code: 'auth/not-configured' };
     }
 
-    const actionCodeSettings = {
-      url: typeof window !== 'undefined' && window.location.origin.includes('morning-whehsn.vercel.app')
-        ? window.location.origin
-        : 'https://morning-whehsn.vercel.app',
-      handleCodeInApp: true,
-    };
-
     try {
-      await sendEmailVerification(auth.currentUser, actionCodeSettings);
+      await sendEmailVerification(auth.currentUser);
     } catch (err: any) {
       console.error('❌ sendEmailVerificationEmail failed:', err?.code || err?.message || err);
       throw err;
