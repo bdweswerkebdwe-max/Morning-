@@ -22,72 +22,101 @@ export class AuthService {
 
     switch (code) {
       case 'auth/user-not-found':
+        return {
+          code,
+          messageAr: 'البريد الإلكتروني غير مسجل لدينا. يمكنك إنشاء حساب جديد.',
+          messageEn: 'No account found with this email address.',
+        };
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
         return {
           code,
-          messageAr: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
-          messageEn: 'Invalid email or password credentials',
+          messageAr: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+          messageEn: 'Invalid email or password credentials.',
         };
       case 'auth/email-already-in-use':
         return {
           code,
-          messageAr: 'هذا البريد الإلكتروني مسجل بالفعل لمستخدم آخر',
-          messageEn: 'This email address is already registered to another user',
+          messageAr: 'هذا البريد الإلكتروني مسجل بالفعل لمستخدم آخر.',
+          messageEn: 'This email address is already registered.',
         };
       case 'auth/weak-password':
         return {
           code,
-          messageAr: 'كلمة المرور ضعيفة جدًا. يرجى اختيار كلمة مرور أطول وأقوى',
-          messageEn: 'The password is too weak. Please choose a stronger password',
+          messageAr: 'كلمة المرور ضعيفة جدًا. يرجى اختيار كلمة مرور أطول وأقوى (8 خانات على الأقل).',
+          messageEn: 'Password is too weak. Please choose at least 8 characters.',
         };
       case 'auth/invalid-email':
         return {
           code,
-          messageAr: 'صيغة البريد الإلكتروني غير صالحة',
-          messageEn: 'Invalid email address format',
+          messageAr: 'صيغة البريد الإلكتروني غير صالحة.',
+          messageEn: 'Invalid email address format.',
         };
       case 'auth/unauthorized-domain':
         return {
           code,
-          messageAr: 'نطاق هذا الموقع غير مصرح به في إعدادات Firebase Authentication. يرجى إضافة النطاق الحالي في Firebase Console -> Authentication -> Settings -> Authorized Domains',
+          messageAr: 'نطاق هذا الموقع غير مصرّح به في إعدادات Firebase Authentication. يرجى إضافة النطاق الحالي في لوحة تحكم Firebase: Firebase Console -> Authentication -> Settings -> Authorized Domains',
           messageEn: 'This domain is not authorized in Firebase Authentication settings. Please add it to Authorized Domains in Firebase Console.',
+        };
+      case 'auth/operation-not-allowed':
+        return {
+          code,
+          messageAr: 'طريقة تسجيل الدخول هذه غير مفعّلة في Firebase Console. يرجى تفعيلها من: Firebase Console -> Authentication -> Sign-in method (Email/Password أو Google)',
+          messageEn: 'This sign-in provider is not enabled in Firebase Console -> Authentication -> Sign-in method.',
         };
       case 'auth/popup-closed-by-user':
         return {
           code,
-          messageAr: 'تم إغلاق نافذة تسجيل الدخول بـ Google قبل إتمام العملية',
-          messageEn: 'Google sign-in popup was closed before completing authentication',
+          messageAr: 'تم إغلاق نافذة تسجيل الدخول بـ Google قبل إتمام العملية.',
+          messageEn: 'Google sign-in popup was closed before completing authentication.',
         };
       case 'auth/popup-blocked':
         return {
           code,
-          messageAr: 'تم حظر نافذة تسجيل الدخول المنبثقة في المتصفح',
-          messageEn: 'Sign-in popup was blocked by your browser settings',
+          messageAr: 'تم حظر نافذة تسجيل الدخول المنبثقة في المتصفح. يرجى السماح بالنوافذ المنبثقة لإكمال العملية.',
+          messageEn: 'Sign-in popup was blocked by browser settings.',
         };
       case 'auth/too-many-requests':
         return {
           code,
-          messageAr: 'تم تقديم محاولات كثيرة خاطئة. يرجى المحاولة لاحقًا',
-          messageEn: 'Too many failed attempts. Please try again later',
+          messageAr: 'تم تقديم محاولات كثيرة خاطئة. يرجى الانتظار بضع دقائق والمحاولة لاحقاً.',
+          messageEn: 'Too many failed attempts. Please try again later.',
         };
       case 'auth/network-request-failed':
         return {
           code,
-          messageAr: 'خطأ في الاتصال بالشبكة. يرجى التحقق من اتصال الإنترنت',
-          messageEn: 'Network error. Please check your internet connection',
+          messageAr: 'خطأ في الاتصال بالشبكة. يرجى التحقق من اتصال الإنترنت.',
+          messageEn: 'Network error. Please check your internet connection.',
+        };
+      case 'auth/invalid-continue-uri':
+        return {
+          code,
+          messageAr: 'رابط إعادة التوجيه في Firebase غير مصرح به أو غير صالح. يرجى إضافة رابط هذا الموقع إلى القائمة المسموحة (Authorized Domains) في Firebase Console.',
+          messageEn: 'The continue URL provided in the request is invalid or not whitelisted in Firebase Console Authorized Domains.',
+        };
+      case 'auth/missing-continue-uri':
+        return {
+          code,
+          messageAr: 'رابط العودة مطلوب لإكمال العملية.',
+          messageEn: 'A valid continue URL must be provided in the request.',
+        };
+      case 'auth/invalid-action-code':
+        return {
+          code,
+          messageAr: 'رمز تفعيل الحساب أو استعادة كلمة المرور غير صالح أو منتهي الصلاحية.',
+          messageEn: 'The action code is invalid, expired, or already used.',
         };
       case 'auth/not-configured':
         return {
           code,
-          messageAr: 'إعدادات Firebase غير مكتملة بعد في متغيرات البيئة. الكود جاهز للربط عند تزويده بالمفاتيح.',
-          messageEn: 'Firebase configuration environment variables are pending setup.',
+          messageAr: 'إعدادات Firebase Authentication غير مهيأة بعد بشكل صحيح أو أن المفاتيح مفقودة.',
+          messageEn: 'Firebase configuration is incomplete or uninitialized.',
         };
       default:
         return {
           code,
-          messageAr: error?.message || 'حدث خطأ في عملية المصادقة. يرجى المحاولة لاحقًا',
-          messageEn: error?.message || 'An authentication error occurred. Please try again',
+          messageAr: error?.message || 'حدث خطأ غير متوقع أثناء المصادقة. يرجى المحاولة لاحقاً.',
+          messageEn: error?.message || 'An authentication error occurred. Please try again.',
         };
     }
   }
@@ -221,11 +250,17 @@ export class AuthService {
       await updateProfile(user, { displayName: fullName.trim() });
     }
 
-    // Send email verification
+    // Send email verification with published domain return URL
     try {
-      await sendEmailVerification(user);
-    } catch (e) {
-      console.warn('Could not send initial verification email:', e);
+      const actionCodeSettings = {
+        url: typeof window !== 'undefined' && window.location.origin.includes('morning-whehsn.vercel.app')
+          ? window.location.origin
+          : 'https://morning-whehsn.vercel.app',
+        handleCodeInApp: true,
+      };
+      await sendEmailVerification(user, actionCodeSettings);
+    } catch (e: any) {
+      console.warn('⚠️ Initial verification email send warning (Firebase Auth user account created successfully):', e?.code || e?.message || e);
     }
 
     // Create user document in Firestore users collection
@@ -246,7 +281,7 @@ export class AuthService {
           updatedAt: serverTimestamp(),
         });
       } catch (e) {
-        console.error('Firestore user registration error:', e);
+        console.error('Firestore user profile document creation error:', e);
       }
     }
 
@@ -316,7 +351,19 @@ export class AuthService {
       throw { code: 'auth/not-configured' };
     }
 
-    await sendPasswordResetEmail(auth, email.trim());
+    const actionCodeSettings = {
+      url: typeof window !== 'undefined' && window.location.origin.includes('morning-whehsn.vercel.app')
+        ? window.location.origin
+        : 'https://morning-whehsn.vercel.app',
+      handleCodeInApp: true,
+    };
+
+    try {
+      await sendPasswordResetEmail(auth, email.trim(), actionCodeSettings);
+    } catch (err: any) {
+      console.error('❌ sendPasswordReset failed:', err?.code || err?.message || err);
+      throw err;
+    }
   }
 
   /**
@@ -327,7 +374,19 @@ export class AuthService {
       throw { code: 'auth/not-configured' };
     }
 
-    await sendEmailVerification(auth.currentUser);
+    const actionCodeSettings = {
+      url: typeof window !== 'undefined' && window.location.origin.includes('morning-whehsn.vercel.app')
+        ? window.location.origin
+        : 'https://morning-whehsn.vercel.app',
+      handleCodeInApp: true,
+    };
+
+    try {
+      await sendEmailVerification(auth.currentUser, actionCodeSettings);
+    } catch (err: any) {
+      console.error('❌ sendEmailVerificationEmail failed:', err?.code || err?.message || err);
+      throw err;
+    }
   }
 
   /**

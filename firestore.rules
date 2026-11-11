@@ -25,18 +25,21 @@ service cloud.firestore {
       );
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    // Connection Test Collection
+    match /test/{docId} {
+      allow read: if true;
     }
 
     // Users Collection
     match /users/{userId} {
       allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow list: if isAdmin();
-      // On create, user can only create their own document and role MUST be 'user', credits MUST be 50 or omitted
+      // On create, regular user can only create their own document with role 'user', credits 50, tier 'free'
+      // Authorized Admins are allowed to set role 'admin'
       allow create: if isSignedIn() && isOwner(userId) &&
-        (!('role' in request.resource.data) || request.resource.data.role == 'user') &&
-        (!('credits' in request.resource.data) || request.resource.data.credits == 50);
+        (!('role' in request.resource.data) || request.resource.data.role == 'user' || isAdmin()) &&
+        (!('credits' in request.resource.data) || request.resource.data.credits == 50 || isAdmin()) &&
+        (!('tier' in request.resource.data) || request.resource.data.tier == 'free' || isAdmin());
       // On update, non-admin user CANNOT modify role, credits, tier, accountStatus, pendingReservedCredits
       allow update: if isSignedIn() && (
         isAdmin() ||

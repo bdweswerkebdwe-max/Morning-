@@ -4,47 +4,72 @@ import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firesto
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import firebaseAppletConfig from '../../firebase-applet-config.json';
 
-// Combine firebase-applet-config.json with environment variables as fallback
+// Detect environment variable overrides vs firebase-applet-config.json
+const envApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const envAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
+const envProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+const envStorageBucket = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET;
+const envAppId = import.meta.env.VITE_FIREBASE_APP_ID;
+
 const firebaseConfig = {
-  apiKey: firebaseAppletConfig.apiKey || import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: firebaseAppletConfig.authDomain || import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: firebaseAppletConfig.projectId || import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: firebaseAppletConfig.storageBucket || import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  apiKey: firebaseAppletConfig.apiKey || envApiKey || '',
+  authDomain: firebaseAppletConfig.authDomain || envAuthDomain || '',
+  projectId: firebaseAppletConfig.projectId || envProjectId || '',
+  storageBucket: firebaseAppletConfig.storageBucket || envStorageBucket || '',
   messagingSenderId: firebaseAppletConfig.messagingSenderId || import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: firebaseAppletConfig.appId || import.meta.env.VITE_FIREBASE_APP_ID || '',
+  appId: firebaseAppletConfig.appId || envAppId || '',
 };
 
-// Check if Firebase is fully configured
-export const isFirebaseConfigured = Boolean(
-  firebaseConfig.apiKey &&
-  firebaseConfig.authDomain &&
-  firebaseConfig.projectId
-);
+// Check env conflict for diagnostic logging
+if (envProjectId && envProjectId !== firebaseAppletConfig.projectId) {
+  console.warn(`[Firebase Diagnostic] Conflict detected: VITE_FIREBASE_PROJECT_ID (${envProjectId}) differs from firebase-applet-config.json (${firebaseAppletConfig.projectId}). Using firebase-applet-config.json.`);
+}
 
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
+let initializationError: string | null = null;
 
-if (isFirebaseConfigured) {
+const hasRequiredFields = Boolean(
+  firebaseConfig.apiKey &&
+  firebaseConfig.authDomain &&
+  firebaseConfig.projectId &&
+  firebaseConfig.appId
+);
+
+if (hasRequiredFields) {
   try {
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
-    // Initialize Firestore with explicit database ID if present in config
+    
     const dbId = (firebaseAppletConfig as any).firestoreDatabaseId;
     db = dbId ? getFirestore(app, dbId) : getFirestore(app);
     storage = getStorage(app);
+    
     googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({
       prompt: 'select_account',
     });
-  } catch (error) {
-    console.warn('Firebase initialization warning:', error);
+
+    console.log('🔥 [Firebase Status] Successfully initialized Firebase instance for project:', firebaseConfig.projectId);
+  } catch (error: any) {
+    initializationError = error?.message || String(error);
+    console.error('❌ [Firebase Status] Error initializing Firebase client:', error);
+    app = null;
+    auth = null;
+    db = null;
+    storage = null;
+    googleProvider = null;
   }
 } else {
-  console.info('MOLAN AI Auth Info: Firebase applet config is pending setup.');
+  initializationError = 'Missing required Firebase configuration fields (apiKey, authDomain, projectId, appId).';
+  console.info('ℹ️ [Firebase Status] Firebase configuration is incomplete or pending setup.');
 }
+
+// Only ready if app and auth instance exist and initialization succeeded
+export const isFirebaseConfigured: boolean = Boolean(app && auth && !initializationError);
 
 /**
  * Validates connection to Firestore from server/client as required by Firebase skill
@@ -65,4 +90,5 @@ export async function testFirestoreConnection(): Promise<boolean> {
   }
 }
 
-export { app, auth, db, storage, googleProvider, firebaseConfig };
+export { app, auth, db, storage, googleProvider, firebaseConfig, initializationError };
+

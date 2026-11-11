@@ -35,64 +35,79 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     testFirestoreConnection();
 
     if (isFirebaseConfigured && auth) {
-      unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-        if (firebaseUser) {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        async (firebaseUser: FirebaseUser | null) => {
           try {
-            const token = await firebaseUser.getIdToken();
-            let role: 'admin' | 'user' = 'user';
-            let credits = 50;
-            let tier: 'free' | 'pro' | 'enterprise' = 'free';
-
-            const userEmail = (firebaseUser.email || '').toLowerCase();
-            const isAdmin = userEmail === 'ahmed@moulin.ai' || userEmail === 'bdwe.swerke.bdwe@gmail.com';
-            if (isAdmin) role = 'admin';
-
-            // Fetch or create profile document in Firestore ywsf-al-zaka
-            if (db) {
+            if (firebaseUser) {
+              let token: string | undefined = undefined;
               try {
-                const userRef = doc(db, 'users', firebaseUser.uid);
-                const snap = await getDoc(userRef);
-                if (snap.exists()) {
-                  const data = snap.data();
-                  role = data.role || (isAdmin ? 'admin' : 'user');
-                  credits = data.credits ?? 50;
-                  tier = data.tier || 'free';
-                } else {
-                  await setDoc(userRef, {
-                    uid: firebaseUser.uid,
-                    fullName: firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : 'مستخدم MOLAN AI'),
-                    email: firebaseUser.email,
-                    photoURL: firebaseUser.photoURL,
-                    provider: firebaseUser.providerData[0]?.providerId || 'google.com',
-                    emailVerified: firebaseUser.emailVerified,
-                    role: isAdmin ? 'admin' : 'user',
-                    credits: 50,
-                    tier: 'free',
-                    accountStatus: 'active',
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp(),
-                  });
-                }
-              } catch (e) {
-                console.error('Error fetching/creating user document in Firestore:', e);
+                token = await firebaseUser.getIdToken();
+              } catch (tokenErr) {
+                console.warn('⚠️ Warning getting Firebase ID token on auth state change:', tokenErr);
               }
-            }
 
-            const mapped = AuthService.mapFirebaseUser(firebaseUser, { role, credits });
-            setUser({
-              ...mapped,
-              tier,
-              token,
-            });
-          } catch (tokenErr) {
-            console.error('Error fetching Firebase ID token:', tokenErr);
-            setUser(null);
+              let role: 'admin' | 'user' = 'user';
+              let credits = 50;
+              let tier: 'free' | 'pro' | 'enterprise' = 'free';
+
+              const userEmail = (firebaseUser.email || '').toLowerCase();
+              const isAdmin = userEmail === 'ahmed@moulin.ai' || userEmail === 'bdwe.swerke.bdwe@gmail.com';
+              if (isAdmin) role = 'admin';
+
+              // Fetch or create profile document in Firestore ywsf-al-zaka (non-blocking for Auth)
+              if (db) {
+                try {
+                  const userRef = doc(db, 'users', firebaseUser.uid);
+                  const snap = await getDoc(userRef);
+                  if (snap.exists()) {
+                    const data = snap.data();
+                    role = data.role || (isAdmin ? 'admin' : 'user');
+                    credits = data.credits ?? 50;
+                    tier = data.tier || 'free';
+                  } else {
+                    await setDoc(userRef, {
+                      uid: firebaseUser.uid,
+                      fullName: firebaseUser.displayName || (userEmail ? userEmail.split('@')[0] : 'مستخدم MOLAN AI'),
+                      email: firebaseUser.email,
+                      photoURL: firebaseUser.photoURL,
+                      provider: firebaseUser.providerData[0]?.providerId || 'google.com',
+                      emailVerified: firebaseUser.emailVerified,
+                      role: isAdmin ? 'admin' : 'user',
+                      credits: 50,
+                      tier: 'free',
+                      accountStatus: 'active',
+                      createdAt: serverTimestamp(),
+                      updatedAt: serverTimestamp(),
+                    });
+                  }
+                } catch (firestoreErr) {
+                  console.warn('⚠️ Firestore profile sync warning (Firebase Auth preserved):', firestoreErr);
+                }
+              }
+
+              const mapped = AuthService.mapFirebaseUser(firebaseUser, { role, credits });
+              setUser({
+                ...mapped,
+                tier,
+                token,
+              });
+            } else {
+              setUser(null);
+            }
+          } catch (onAuthErr) {
+            console.error('❌ Error handling onAuthStateChanged callback:', onAuthErr);
+          } finally {
+            setLoading(false);
           }
-        } else {
-          setUser(null);
+        },
+        (error: any) => {
+          console.error('❌ onAuthStateChanged error listener triggered:', error);
+          const formatted = AuthService.formatAuthError(error);
+          setError(formatted.messageAr);
+          setLoading(false);
         }
-        setLoading(false);
-      });
+      );
     } else {
       setUser(null);
       setLoading(false);
@@ -125,7 +140,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw { code: 'auth/not-configured' };
       }
       const authUser = await AuthService.loginWithGoogle();
-      const token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      let token: string | undefined = undefined;
+      try {
+        token = auth.currentUser ? await auth.currentUser.getIdToken() : undefined;
+      } catch (tokenErr) {
+        console.warn('Could not fetch token immediately after login:', tokenErr);
+      }
       setUser({ ...authUser, token });
     } catch (err: any) {
       const formatted = AuthService.formatAuthError(err);
