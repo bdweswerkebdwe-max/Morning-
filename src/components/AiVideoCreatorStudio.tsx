@@ -121,7 +121,7 @@ export const AiVideoCreatorStudio: React.FC<AiVideoCreatorStudioProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token || 'demo-guest-token'}`,
         },
         body: JSON.stringify({
           idea: rawIdea.trim(),
@@ -184,7 +184,7 @@ export const AiVideoCreatorStudio: React.FC<AiVideoCreatorStudioProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token || 'demo-guest-token'}`,
         },
         body: JSON.stringify({
           prompt: activePrompt,

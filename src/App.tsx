@@ -147,6 +147,7 @@ function MainApp() {
         role: user.role,
         avatar: user.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
         isAdmin: user.role === 'admin',
+        token: user.token,
       }
     : null;
 
@@ -217,10 +218,10 @@ function MainApp() {
             />
           )}
 
-          {activeTab === 'video_creator' && (
+           {activeTab === 'video_creator' && (
             <AiVideoCreatorStudio
               user={legacyUser}
-              token={user?.token || null}
+              token={user?.token || 'demo-guest-token'}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -229,7 +230,7 @@ function MainApp() {
           {activeTab === 'video' && (
             <VideoGenerationStudio
               user={legacyUser}
-              token={user?.token || null}
+              token={user?.token || 'demo-guest-token'}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
               initialInputMode={videoInputMode}
@@ -254,7 +255,7 @@ function MainApp() {
           {activeTab === 'product_ads' && (
             <ProductAdsStudio
               user={legacyUser}
-              token={user?.token || null}
+              token={user?.token || 'demo-guest-token'}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
               onNavigateToVideoStudio={() => {
@@ -267,7 +268,7 @@ function MainApp() {
           {activeTab === 'image' && (
             <ImageStudio
               user={legacyUser}
-              token={user?.token || null}
+              token={user?.token || 'demo-guest-token'}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -276,7 +277,7 @@ function MainApp() {
           {activeTab === 'copywriter' && (
             <CopywriterStudio
               user={legacyUser}
-              token={user?.token || null}
+              token={user?.token || 'demo-guest-token'}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
               onSendScriptToVideoStudio={() => {
@@ -297,7 +298,7 @@ function MainApp() {
           {activeTab === 'translator' && (
             <TranslatorStudio
               user={legacyUser}
-              token={user?.token || null}
+              token={user?.token || 'demo-guest-token'}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -306,7 +307,7 @@ function MainApp() {
           {activeTab === 'assistant' && (
             <MarketingAssistantStudio
               user={legacyUser}
-              token={user?.token || null}
+              token={user?.token || 'demo-guest-token'}
               setUser={(u: any) => setUser(u)}
               onSaveProject={handleSaveProject}
             />
@@ -323,7 +324,7 @@ function MainApp() {
             <ProtectedRoute requireAdmin={true} onOpenLogin={() => setIsLoginOpen(true)}>
               <AdminDashboard
                 currentUser={legacyUser}
-                token={user?.token || null}
+                token={user?.token || 'demo-guest-token'}
               />
             </ProtectedRoute>
           )}

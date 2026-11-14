@@ -1,11 +1,12 @@
 {
   "projectId": "ywsf-al-zaka",
   "appId": "1:1099110103911:web:93b852296e19dfe338cdc2",
-  "apiKey": "AIzaSyBBSY3rNoJbnHrDXdd__dA48J6HUiDCO8I",
+  "apiKey": "AIzaSyAZnbYhaGG-Br_UGMqSYRaxUADsaABhIBE",
   "authDomain": "ywsf-al-zaka.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-moulinai-50ce0957-f4e2-41f2-945f-96b084517586",
   "storageBucket": "ywsf-al-zaka.firebasestorage.app",
   "messagingSenderId": "1099110103911",
-  "measurementId": "",
-  "oAuthClientId": "1099110103911-8n8fljalcb1l2i2ejq9dk9tqenr3gsml.apps.googleusercontent.com",
+  "measurementId": "G-VHV1VQ52EW",
+  "oAuthClientId": "1099110103911-tqbsj2qg21bvn1otvblnp380ksrgthnj.apps.googleusercontent.com",
   "recaptchaSiteKey": ""
 }

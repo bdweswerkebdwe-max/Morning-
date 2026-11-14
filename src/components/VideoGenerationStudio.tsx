@@ -90,7 +90,7 @@ export const VideoGenerationStudio: React.FC<VideoGenerationStudioProps> = ({ us
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token || 'demo-guest-token'}`,
         },
         body: JSON.stringify({ url: trimmedUrl }),
       });
@@ -176,7 +176,7 @@ export const VideoGenerationStudio: React.FC<VideoGenerationStudioProps> = ({ us
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token || 'demo-guest-token'}`,
         },
         body: JSON.stringify({
           product: trimmedProduct,

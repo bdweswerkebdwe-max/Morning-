@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, Auth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import firebaseAppletConfig from '../../firebase-applet-config.json';
@@ -43,6 +43,9 @@ if (hasRequiredFields) {
   try {
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.warn('⚠️ [Firebase Init] Could not set persistence:', err);
+    });
     
     const dbId = (firebaseAppletConfig as any).firestoreDatabaseId;
     db = dbId ? getFirestore(app, dbId) : getFirestore(app);
@@ -53,10 +56,24 @@ if (hasRequiredFields) {
       prompt: 'select_account',
     });
 
-    console.log('🔥 [Firebase Status] Successfully initialized Firebase instance for project:', firebaseConfig.projectId);
+    console.info('🔥 [Firebase Init Diagnostic]', {
+      projectId: firebaseConfig.projectId,
+      authDomain: firebaseConfig.authDomain,
+      hasApiKey: Boolean(firebaseConfig.apiKey),
+      hasAppId: Boolean(firebaseConfig.appId),
+      hasApp: Boolean(app),
+      hasAuth: Boolean(auth),
+      hasDb: Boolean(db),
+      origin: typeof window !== 'undefined' ? window.location.origin : 'server',
+    });
   } catch (error: any) {
     initializationError = error?.message || String(error);
-    console.error('❌ [Firebase Status] Error initializing Firebase client:', error);
+    console.error('❌ [Firebase Init Diagnostic] Failed to initialize Firebase client:', {
+      code: error?.code || 'firebase/init-error',
+      message: initializationError,
+      projectId: firebaseConfig.projectId,
+      authDomain: firebaseConfig.authDomain,
+    });
     app = null;
     auth = null;
     db = null;
@@ -65,11 +82,26 @@ if (hasRequiredFields) {
   }
 } else {
   initializationError = 'Missing required Firebase configuration fields (apiKey, authDomain, projectId, appId).';
-  console.info('ℹ️ [Firebase Status] Firebase configuration is incomplete or pending setup.');
+  console.error('❌ [Firebase Init Diagnostic]', initializationError);
 }
 
 // Only ready if app and auth instance exist and initialization succeeded
 export const isFirebaseConfigured: boolean = Boolean(app && auth && !initializationError);
+
+export function getFirebaseDiagnostics() {
+  return {
+    isConfigured: isFirebaseConfigured,
+    projectId: firebaseConfig.projectId || '',
+    authDomain: firebaseConfig.authDomain || '',
+    hasApp: Boolean(app),
+    hasAuth: Boolean(auth),
+    hasDb: Boolean(db),
+    hasGoogleProvider: Boolean(googleProvider),
+    initializationError,
+    currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'server',
+    currentHostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+  };
+}
 
 /**
  * Validates connection to Firestore from server/client as required by Firebase skill
@@ -78,17 +110,21 @@ export async function testFirestoreConnection(): Promise<boolean> {
   if (!db) return false;
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log('✅ Firestore connection test succeeded!');
+    console.log('✅ [Firestore Diagnostic] Connection test succeeded (test/connection).');
     return true;
   } catch (error: any) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('❌ Please check your Firebase configuration.');
+      console.error('❌ [Firestore Diagnostic] Client offline or invalid Firebase config.');
     } else {
-      console.warn('Firestore connection info:', error?.message || error);
+      console.warn('⚠️ [Firestore Diagnostic] test/connection result:', {
+        code: error?.code || 'firestore/unknown',
+        message: error?.message || String(error),
+      });
     }
     return false;
   }
 }
 
 export { app, auth, db, storage, googleProvider, firebaseConfig, initializationError };
+
 

@@ -42,3 +42,32 @@ export interface PasswordStrength {
   hasNumber: boolean;
   hasSpecialChar: boolean;
 }
+
+export type AuthStage =
+  | 'idle'
+  | 'firebase_init'
+  | 'auth_google'
+  | 'auth_email'
+  | 'auth_register'
+  | 'auth_reset'
+  | 'auth_verify'
+  | 'id_token'
+  | 'auth_state_listener'
+  | 'firestore_profile';
+
+export interface AuthDiagnostic {
+  stage: AuthStage;
+  stageLabelAr: string;
+  authSuccess: boolean;
+  onAuthStateChangedFired: boolean;
+  idTokenSuccess: boolean | null;
+  firestoreSuccess: boolean | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  firestoreErrorCode: string | null;
+  firestoreErrorMessage: string | null;
+  projectId: string;
+  authDomain: string;
+  currentOrigin: string;
+  timestamp: string;
+}
